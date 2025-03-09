@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/plugins/q_ntrip_client" >
+        <file>icon.png</file>
+    </qresource>
+</RCC>
