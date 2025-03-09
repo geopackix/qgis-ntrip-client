@@ -74,6 +74,7 @@ class QNTRIPClient:
         self.dockwidget = None
         
         self.serialStream = None
+        self.layer = None
 
 
     # noinspection PyMethodMayBeStatic
@@ -220,7 +221,8 @@ class QNTRIPClient:
             self.serialStream = NtripSerialStream(serial,int(baud))
             
             ## Temp layer for gnss points
-            self.layer = QgsProject.instance().addMapLayer(self.create_temp_layer())
+            self.layer = self.create_temp_layer()
+            QgsProject.instance().addMapLayer(self.layer)
             
             self.serialStream.registerEventListener(self.update_gnss_position)
             
@@ -260,11 +262,15 @@ class QNTRIPClient:
         
      
     def set_marker(self, x, y):
+        
         feature = QgsFeature()
         feature.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(x, y)))
-        feature.setAttributes(["gnss_point"])
+        #feature.setAttributes(["gnss_point"])
+
         self.layer.dataProvider().addFeature(feature)
+        
         self.layer.updateExtents()
+        self.layer.triggerRepaint() #re-draw layer
         
     
 
@@ -319,7 +325,7 @@ class QNTRIPClient:
             # Erstellen eines neuen temporären Layers
             layer = QgsVectorLayer("Point?crs=EPSG:4326", layername, "memory")
             
-            layer.dataProvider().addAttributes([QgsField("name", QVariant.String)])
+            #layer.dataProvider().addAttributes([QgsField("name", QVariant.String)])
             layer.updateFields()
         
             # Hinzufügen von Feldern zum Layer
@@ -391,8 +397,9 @@ class QNTRIPClient:
             
             self.dockwidget.show()
             
-            ## Temp layer for gnss points
-            QgsProject.instance().addMapLayer(self.create_temp_layer())
+            
+            
+        
             
             #self.layer.renderer().setSymbol()
             
