@@ -25,6 +25,8 @@ from qgis.core import QgsProject, QgsPointXY, QgsMarkerSymbol, QgsFeature, QgsGe
 from tools.mapTool import MapTool
 from ntripClient.ntripClient import NtripClient, NtripSerialStream
 
+from datetime import datetime
+
 
 # Import the code for the DockWidget
 from .q_ntrip_client_dockwidget import QNTRIPClientDockWidget
@@ -212,6 +214,7 @@ class QNTRIPClient:
     #--------------------------------------------------------------------------
     def stopNtripClient(self):
         self.serialStream.stopSerialStream()
+        self.out(f'Disconnect serial stream.')
         
 
     def startNtripClient(self):
@@ -219,6 +222,7 @@ class QNTRIPClient:
         try:
             host,port,mp,user,pw,serial,baud = self.getValuesFromUi()
             self.serialStream = NtripSerialStream(serial,int(baud))
+            self.out(f'Connect serial stream.')
             
             ## Temp layer for gnss points
             self.layer = self.create_temp_layer()
@@ -227,16 +231,17 @@ class QNTRIPClient:
             self.serialStream.registerEventListener(self.update_gnss_position)
             
             ntripArgs = {}
-            ntripArgs['lat']= 48.0
-            ntripArgs['lon']= 9.0
+            ntripArgs['lat']= 48.6
+            ntripArgs['lon']= 9.7
             ntripArgs['height']= 400
-            ntripArgs['host']= host
             # import ssl
             # ntripArgs['ssl']=True
 
             ntripArgs['ssl']=False
             ntripArgs['user']=user+":"+pw
+            print(ntripArgs['user'])
             ntripArgs['caster']=host
+            ntripArgs['host']=host
             ntripArgs['port']=int(port)
             ntripArgs['mountpoint']=mp
 
@@ -247,10 +252,11 @@ class QNTRIPClient:
             #serialStream = NtripSerialStream(serial,int(baud))
             ntripArgs['streams'] = [self.serialStream]
             
-            client =  NtripClient(**ntripArgs)
-            print(client.getMountPointBytes())
+            print(ntripArgs)
             
-            #client.readData()
+            client =  NtripClient(**ntripArgs)
+            client.readData()
+            self.out(f'Connect to NTRIP caster {host}.')
         except Exception as e:
             
             print(f"Fehler beim Starten des Ntrip Clients: {e}")    
@@ -337,6 +343,12 @@ class QNTRIPClient:
             print(f"Temporärer Layer {layername} wurde erstellt.")
             return layer
 
+    def out(self, message):
+        iso_timestamp = datetime.now().isoformat()
+        history = self.dockwidget.output.toPlainText()
+        
+        self.dockwidget.output.setPlainText( iso_timestamp + ' ' + message + '\n'+ history)
+
     def run(self):
         """Run method that loads and starts the plugin"""
         
@@ -388,6 +400,8 @@ class QNTRIPClient:
             self.dockwidget.inputPassword.setText(self.config ['DEFAULT']['Password'])
             self.dockwidget.inputSPort.setText(self.config ['DEFAULT']['Serialport'])
             self.dockwidget.inputSBaud.setText(self.config ['DEFAULT']['SerialBaud'])
+            
+            
         
             
             

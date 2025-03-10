@@ -22,7 +22,7 @@ useragent="Q-Ntrip-X-/%.1f" % version
 
 
 factor=2 # How much the sleep time increases with each failed attempt
-maxReconnect=1
+maxReconnect=100
 maxReconnectTime=1200
 sleepTime=1 # So the first one is 1 second
 
@@ -47,7 +47,6 @@ class NtripClient(object):
                  headerFile=sys.stderr,
                  headerOutput=False,
                  maxConnectTime=0,
-                 logger = None,
                  streams = []
                  ):
         self.buffer=buffer
@@ -66,7 +65,7 @@ class NtripClient(object):
         self.headerFile=headerFile
         self.headerOutput=headerOutput
         self.maxConnectTime=maxConnectTime
-        self.logger = logger
+        
         self.serialStreams = streams
         
         self.socket=None
@@ -119,9 +118,8 @@ class NtripClient(object):
            mountPointString+=hostString
         if self.V2:
            mountPointString+="Ntrip-Version: Ntrip/2.0\r\n"
-        mountPointString+="\r\n"
+        #mountPointString+="\r\n"
         
-        print (mountPointString)
         return bytes(mountPointString,'ascii')
 
     def getGGABytes(self):
@@ -145,142 +143,144 @@ class NtripClient(object):
         reconnectTry=1
         sleepTime=1
         reconnectTime=0
+        
+        print('Connect to NTRIP caster.')
+        
         if self.maxConnectTime > 0 :
             EndConnect=datetime.timedelta(seconds=self.maxConnectTime)
-        try:
-            while reconnectTry<=maxReconnect:
-                found_header=False
-                if self.verbose:
-                    sys.stderr.write('Connection {0} of {1}\n'.format(reconnectTry,maxReconnect))
+        
+        while reconnectTry<=maxReconnect:
+            found_header=False
+            
+            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-                self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            #if self.ssl:
+                #self.socket=ssl.wrap_socket(self.socket)
+                #self.socket=ssl.wrap_socket(self.socket, keyfile=None, certfile=None, server_side=False, cert_reqs=ssl.CERT_NONE, ssl_version=ssl.PROTOCOL_SSLv23, server_hostname=self.caster)
+            
 
-                if self.ssl:
-                    self.socket=ssl.wrap_socket(self.socket)
-                    #self.socket=ssl.wrap_socket(self.socket, keyfile=None, certfile=None, server_side=False, cert_reqs=ssl.CERT_NONE, ssl_version=ssl.PROTOCOL_SSLv23, server_hostname=self.caster)
+            error_indicator = self.socket.connect_ex((self.caster, self.port))
+            
+            if error_indicator==0:
+                sleepTime = 1
+                connectTime=datetime.datetime.now()
+
+                self.socket.settimeout(1000)
+                self.socket.sendall(self.getMountPointBytes())
                 
-
-                error_indicator = self.socket.connect_ex((self.caster, self.port))
-                if error_indicator==0:
-                    sleepTime = 1
-                    connectTime=datetime.datetime.now()
-
-                    self.socket.settimeout(1000)
-                    self.socket.sendall(self.getMountPointBytes())
-                    while not found_header:
-                        casterResponse=self.socket.recv(1024) #All the data
-                          
-                        print(casterResponse)
-
-                        header_lines = None
-                        try:
-                            header_lines = casterResponse.decode('utf-8').split("\r\n")
-                        except:
-                            print('error in header decoding.')
-
-                        for line in header_lines:
-                            if line=="":
-                                if not found_header:
-                                    found_header=True
-                                    if self.verbose:
-                                        sys.stderr.write("End Of Header"+"\n")
-                            else:
-                                if self.verbose:
-                                    sys.stderr.write("Header: " + line+"\n")
-                            if self.headerOutput:
-                                self.headerFile.write(line+"\n")
-
-                        for line in header_lines:
-                            if line.find("SOURCETABLE")>=0:
-                                sys.stderr.write("Mount point does not exist")
-                                sys.exit(1)
-                            elif line.find("401 Unauthorized")>=0:
-                                sys.stderr.write("Unauthorized request\n")
-                                sys.exit(1)
-                            elif line.find("404 Not Found")>=0:
-                                sys.stderr.write("Mount Point does not exist\n")
-                                sys.exit(2)
-                            elif line.find("ICY 200 OK")>=0:
-                                #Request was valid
-                                
-                                
-                                self.socket.sendall(self.getGGABytes())
-                                self.connectionState = True
-                            elif line.find("HTTP/1.0 200 OK")>=0:
-                                #Request was valid
-                                self.socket.sendall(self.getGGABytes())
-                                self.connectionState = True
-                            elif line.find("HTTP/1.1 200 OK")>=0:
-                                #Request was valid
-                                self.socket.sendall(self.getGGABytes())
-                                self.connectionState = True
-                        
-                    data = "Initial data".encode()
-
-                    #self.localsocket.connect(('127.0.0.1', 9995))
+                while not found_header:
                     
-                    while data:
+                    casterResponse=self.socket.recv(1024) #All the data
+                    
+                   
+                    print(casterResponse)
 
-                        try:
-                            data=self.socket.recv(self.buffer)
+                    header_lines = None
+                    try:
+                        header_lines = casterResponse.decode('utf-8').split("\r\n")
+                    except:
+                        print('error in header decoding.')
 
-                            for s in self.serialStreams:
-                                s.writeToStream(data);
-                                   
-                            if self.maxConnectTime :
-                                if datetime.datetime.now() > connectTime+EndConnect:
-                                    if self.verbose:
-                                        sys.stderr.write("Connection Time exceeded\n")
-                                    sys.exit(0)
-
-                        except socket.timeout:
+                    for line in header_lines:
+                        if line=="":
+                            if not found_header:
+                                found_header=True
+                                if self.verbose:
+                                    print("End Of Header"+"\n")
+                        else:
                             if self.verbose:
-                                sys.stderr.write('Connection TimedOut\n')
-                            data=False
-                        except socket.error:
-                            if self.verbose:
-                                sys.stderr.write('Connection Error\n')
-                            data=False
+                                print("Header: " + line+"\n")
+                        if self.headerOutput:
+                            self.headerFile.write(line+"\n")
 
-                    if self.verbose:
-                        sys.stderr.write('Closing Connection\n')
-                    self.socket.close()
-                    self.socket=None
+                    for line in header_lines:
+                        
+                        print(line)
+                        
+                        
+                        if line.find("SOURCETABLE")>=0:
+                            print("Mount point does not exist")
+                            #sys.exit(1)
+                        elif line.find("401 Unauthorized")>=0:
+                            print("Unauthorized request\n")
+                            #sys.exit(1)
+                        elif line.find("404 Not Found")>=0:
+                            print("Mount Point does not exist\n")
+                            #sys.exit(2)
+                        elif line.find("ICY 200 OK")>=0:
+                            print("ICY 200 OK")
+                            #Request was valid
+                            
+                            
+                            self.socket.sendall(self.getGGABytes())
+                            self.connectionState = True
+                        elif line.find("HTTP/1.0 200 OK")>=0:
+                            #Request was valid
+                            self.socket.sendall(self.getGGABytes())
+                            self.connectionState = True
+                        elif line.find("HTTP/1.1 200 OK")>=0:
+                            #Request was valid
+                            self.socket.sendall(self.getGGABytes())
+                            self.connectionState = True
+                    
+                data = "Initial data".encode()
+                
+                while data:
 
-                    if reconnectTry < maxReconnect :
-                        sys.stderr.write( "%s No Connection to NtripCaster.  Trying again in %i seconds\n" % (datetime.datetime.now(), sleepTime))
-                        time.sleep(sleepTime)
-                        sleepTime *= factor
+                    try:
+                        data=self.socket.recv(self.buffer)
+                        print(data)
 
-                        if sleepTime>maxReconnectTime:
-                            sleepTime=maxReconnectTime
-                    else:
-                        sys.exit(1)
+                        for s in self.serialStreams:
+                            s.writeToStream(data);
+                                
+                        if self.maxConnectTime :
+                            if datetime.datetime.now() > connectTime+EndConnect:
+                                if self.verbose:
+                                    print("Connection Time exceeded\n")
+                                #sys.exit(0)
 
+                    except socket.timeout:
+                        if self.verbose:
+                            print('Connection TimedOut\n')
+                        data=False
+                    except socket.error:
+                        if self.verbose:
+                            print('Connection Error\n')
+                        data=False
 
-                    reconnectTry += 1
-                else:
-                    self.socket=None
-                    if self.verbose:
-                        print ("Error indicator: ", error_indicator)
-
-                    if reconnectTry < maxReconnect :
-                        sys.stderr.write( "%s No Connection to NtripCaster.  Trying again in %i seconds\n" % (datetime.datetime.now(), sleepTime))
-                        time.sleep(sleepTime)
-                        sleepTime *= factor
-                        if sleepTime>maxReconnectTime:
-                            sleepTime=maxReconnectTime
-                    reconnectTry += 1
-
-        except KeyboardInterrupt:
-            if self.socket:
+                
                 self.socket.close()
-            sys.exit()
+                self.socket=None
+
+                if reconnectTry < maxReconnect :
+                    print( "%s No Connection to NtripCaster.  Trying again in %i seconds\n" % (datetime.datetime.now(), sleepTime))
+                    #time.sleep(sleepTime)
+                    #sleepTime *= factor
+
+                    if sleepTime>maxReconnectTime:
+                        sleepTime=maxReconnectTime
+                #else:
+                    #sys.exit(1)
+
+
+                reconnectTry += 1
+            else:
+                self.socket=None
+                
+                print ("Error indicator: ", error_indicator)
+
+                if reconnectTry < maxReconnect :
+                    print( "%s No Connection to NtripCaster.  Trying again in %i seconds\n" % (datetime.datetime.now(), sleepTime))
+                    time.sleep(sleepTime)
+                    sleepTime *= factor
+                    if sleepTime>maxReconnectTime:
+                        sleepTime=maxReconnectTime
+                reconnectTry += 1
 
 
 class NtripSerialStream():
     def __init__(self, port, baudrate):
-        
         self.port = port
         self.baudrate = baudrate
         self.serial = serial.Serial(port, baudrate, timeout=1)
@@ -294,8 +294,6 @@ class NtripSerialStream():
         print('Initialized serialport ' + str(self.port) + ' with baudrate ' + str(self.baudrate))
         self.thread.start()   #start timer thread
         
-        
-        
 
     def runProcess(self):
         #self.__resetTestRun()
@@ -307,10 +305,9 @@ class NtripSerialStream():
     
     def writeToStream(self, txdata):
         if self.sendCorrectionData:
-            #print(str(self.__getLogTimestamp()) + ' - write date to stream ' + str(self.port))
+            print('write date to stream ' + str(self.port))
             self.serial.write(txdata)
-        # else:
-        #     print(str(self.__getLogTimestamp()) + ' - skip date on stream ' + str(self.port))
+        
         
     def __read_from_serial(self):
 
@@ -342,6 +339,7 @@ class NtripSerialStream():
             if isinstance(msg, pynmea2.types.talker.GGA):
                 latitude = msg.latitude
                 longitude = msg.longitude
+                
                 print(f"Latitude: {latitude}, Longitude: {longitude}, Fixtype: {self.__getFixModeString(msg.gps_qual)}")
                 self.triggerEvents({'lat': latitude, 'lon': longitude})
                      
