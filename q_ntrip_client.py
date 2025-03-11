@@ -14,7 +14,7 @@ import configparser
 from typing import Optional
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt, QTimer, QVariant
-from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtGui import QIcon, QPixmap
 from qgis.PyQt.QtWidgets import QAction, QLineEdit, QVBoxLayout, QWidget
 import threading
 
@@ -272,6 +272,31 @@ class QNTRIPClient:
         
         self.set_marker(longitude, latitude, data)
         
+        #icon
+        ft_icon_no = f'{self.plugin_dir}/noPos.png'
+        ft_icon_3d = f'{self.plugin_dir}/pos4.png'
+        ft_icon_rtkfloat = f'{self.plugin_dir}/pos2.png'
+        ft_icon_rtkfix = f'{self.plugin_dir}/pos.png'
+        ft_icon_dgps = f'{self.plugin_dir}/pos3.png'
+        
+        if(data['fixtype'] == 1):
+            self.dockwidget.fixtypeIcon.setPixmap(QPixmap(ft_icon_3d))
+        elif(data['fixtype'] == 2):
+            self.dockwidget.fixtypeIcon.setPixmap(QPixmap(ft_icon_dgps))
+        elif(data['fixtype'] == 4):
+            self.dockwidget.fixtypeIcon.setPixmap(QPixmap(ft_icon_rtkfix))
+        elif(data['fixtype'] == 5):
+            self.dockwidget.fixtypeIcon.setPixmap(QPixmap(ft_icon_rtkfloat))
+    
+        else:
+            self.dockwidget.fixtypeIcon.setPixmap(QPixmap(ft_icon_no))
+        
+        
+        
+        
+        
+        
+        
      
     def set_marker(self, x, y, data):
         
@@ -423,7 +448,8 @@ class QNTRIPClient:
             self.dockwidget.inputSPort.setText(self.config ['DEFAULT']['Serialport'])
             self.dockwidget.inputSBaud.setText(self.config ['DEFAULT']['SerialBaud'])
             
-            
+            ft_icon_no = f'{self.plugin_dir}/noPos.png'
+            self.dockwidget.fixtypeIcon.setPixmap(QPixmap(ft_icon_no))
         
             
             
