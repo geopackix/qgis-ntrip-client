@@ -77,6 +77,7 @@ class QNTRIPClient:
         
         self.serialStream = None
         self.layer = None
+        self.client = None
 
 
     # noinspection PyMethodMayBeStatic
@@ -172,7 +173,9 @@ class QNTRIPClient:
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
-        icon_path = ':/plugins/q_ntrip_client/icon.png'
+        #icon_path = ':/plugins/q_ntrip_client/icon.png'
+        icon_path = f'{self.plugin_dir}/icon.png'
+        #icon_path = 'icon.png'
         self.add_action(
             icon_path,
             text=self.tr(u'QNtrip'),
@@ -214,6 +217,7 @@ class QNTRIPClient:
     #--------------------------------------------------------------------------
     def stopNtripClient(self):
         self.serialStream.stopSerialStream()
+        self.client.stopThreads()
         self.out(f'Disconnect serial stream.')
         
 
@@ -239,10 +243,11 @@ class QNTRIPClient:
 
             ntripArgs['ssl']=False
             ntripArgs['user']=user+":"+pw
-            print(ntripArgs['user'])
+            
             ntripArgs['caster']=host
-            ntripArgs['host']=host
+            #ntripArgs['host']=host
             ntripArgs['port']=int(port)
+            print(f'Mountpoint:{mp}')
             ntripArgs['mountpoint']=mp
 
             if ntripArgs['mountpoint'][0:1] !="/":
@@ -252,26 +257,33 @@ class QNTRIPClient:
             #serialStream = NtripSerialStream(serial,int(baud))
             ntripArgs['streams'] = [self.serialStream]
             
-            print(ntripArgs)
             
-            client =  NtripClient(**ntripArgs)
-            client.readData()
+            
+            self.client = NtripClient(**ntripArgs)
+            self.client.getMountpoints()
+            #client.readData()
             self.out(f'Connect to NTRIP caster {host}.')
         except Exception as e:
-            
             print(f"Fehler beim Starten des Ntrip Clients: {e}")    
    
     def update_gnss_position(self, data):
         longitude = data['lon']
         latitude = data['lat']
-        self.set_marker(longitude, latitude)
+        
+        self.set_marker(longitude, latitude, data)
         
      
-    def set_marker(self, x, y):
+    def set_marker(self, x, y, data):
         
         feature = QgsFeature()
         feature.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(x, y)))
-        #feature.setAttributes(["gnss_point"])
+        
+        longitude = data['lon']
+        latitude = data['lat']
+        height = data['alt']
+        fixtype = data['fixtype']
+        
+        feature.setAttributes([latitude, longitude, height, fixtype])
 
         self.layer.dataProvider().addFeature(feature)
         
@@ -331,7 +343,17 @@ class QNTRIPClient:
             # Erstellen eines neuen temporären Layers
             layer = QgsVectorLayer("Point?crs=EPSG:4326", layername, "memory")
             
-            #layer.dataProvider().addAttributes([QgsField("name", QVariant.String)])
+            #layer.dataProvider().addAttributes([QgsField("lat", QVariant.Float)])
+            
+            layer.dataProvider().addAttributes([
+                QgsField("Lat", QVariant.Double),
+                QgsField("Lon", QVariant.Double),
+                QgsField("Height", QVariant.Double),
+                QgsField("Fixtype", QVariant.Int)
+            ])
+            layer.updateFields()
+            
+            
             layer.updateFields()
         
             # Hinzufügen von Feldern zum Layer

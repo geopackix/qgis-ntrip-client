@@ -18,7 +18,8 @@ from . import pynmea2
 
 
 version=0.5
-useragent="Q-Ntrip-X-/%.1f" % version
+useragent="Q-Ntrip"
+#useragent="Q-Ntrip-/%.1f" % version
 
 
 factor=2 # How much the sleep time increases with each failed attempt
@@ -42,7 +43,6 @@ class NtripClient(object):
                  height=330,
                  ssl=False,
                  verbose=False,
-                 UDP_Port=None,
                  V2=False,
                  headerFile=sys.stderr,
                  headerOutput=False,
@@ -60,7 +60,6 @@ class NtripClient(object):
         self.verbose=verbose
         self.ssl=ssl
         self.host=host
-        self.UDP_Port=UDP_Port
         self.V2=V2
         self.headerFile=headerFile
         self.headerOutput=headerOutput
@@ -71,22 +70,24 @@ class NtripClient(object):
         self.socket=None
         
         self.connectionState = False # indicates if ntrip connection has been established.
+        
+        
+        self.stop_event = threading.Event()
         self.uploadPositionThread = threading.Thread(target=self.positionUploadTask)
         self.uploadPositionThread.daemon = True  # makes the thread a daemon thread
         self.uploadPositionThread.start()   #start timer thread
 
-        if UDP_Port:
-            self.UDP_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self.UDP_socket.bind(('', 0))
-            self.UDP_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        else:
-            self.UDP_socket=None
+        
     
     def positionUploadTask(self):
-        while True:
+        while not self.stop_event.is_set():
+        
             if self.connectionState:
                 self.socket.sendall(self.getGGABytes())         # Send GGS string to caster         
             time.sleep(15)   
+
+    def stopThreads(self):
+        self.stop_event.set()
 
     def setPosition(self, lat, lon):
         self.flagN="N"
@@ -111,6 +112,12 @@ class NtripClient(object):
         self.latMin=(lat-self.latDeg)*60
 
     def getMountPointBytes(self):
+        
+        # Benutzername und Passwort kodieren
+        credentials = self.user
+        encoded_credentials = base64.b64encode(credentials.encode('utf-8')).decode('utf-8')
+        
+        
         mountPointString = "GET %s HTTP/1.1\r\nUser-Agent: %s\r\nAuthorization: Basic %s\r\n" % (self.mountpoint, useragent, self.user)
 
         if self.host or self.V2:
@@ -118,9 +125,11 @@ class NtripClient(object):
            mountPointString+=hostString
         if self.V2:
            mountPointString+="Ntrip-Version: Ntrip/2.0\r\n"
-        #mountPointString+="\r\n"
+        mountPointString+="\r\n"
         
-        return bytes(mountPointString,'ascii')
+        
+        #return bytes(mountPointString,'ascii')
+        return (mountPointString.encode('utf-8'))
 
     def getGGABytes(self):
         now = datetime.datetime.utcnow()
@@ -139,6 +148,74 @@ class NtripClient(object):
             xsum_calc = xsum_calc ^ ord(char)
         return "%02X" % xsum_calc
 
+    def getMountpoints(self):
+        try:
+            
+            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            
+            with self.socket as s:
+                error_indicator = s.connect_ex((self.caster, self.port))
+                print(f'Errorindicator: {error_indicator}')
+                print(self.getMountPointBytes())
+                self.socket.settimeout(1000)
+                s.sendall(self.getMountPointBytes())
+                found_header = False
+                
+                while not found_header:
+                    print('receice data')
+                    casterResponse=self.socket.recv(1024) #All the data
+                    
+                    print(casterResponse)
+
+                    header_lines = None
+                    try:
+                        header_lines = casterResponse.decode('utf-8').split("\r\n")
+                    except:
+                        print('error in header decoding.')
+
+                    for line in header_lines:
+                        if line=="":
+                            if not found_header:
+                                found_header=True
+                                if self.verbose:
+                                    print("End Of Header"+"\n")
+                        else:
+                            if self.verbose:
+                                print("Header: " + line+"\n")
+                        if self.headerOutput:
+                            self.headerFile.write(line+"\n")
+
+                    for line in header_lines:
+                        print(line)
+                        if line.find("SOURCETABLE")>=0:
+                            print("Mount point does not exist")
+                            #sys.exit(1)
+                        elif line.find("401 Unauthorized")>=0:
+                            print("Unauthorized request\n")
+                            #sys.exit(1)
+                        elif line.find("404 Not Found")>=0:
+                            print("Mount Point does not exist\n")
+                            #sys.exit(2)
+                        elif line.find("ICY 200 OK")>=0:
+                            print("ICY 200 OK")
+                            #Request was valid
+                            
+                            
+                            self.socket.sendall(self.getGGABytes())
+                            self.connectionState = True
+                        elif line.find("HTTP/1.0 200 OK")>=0:
+                            #Request was valid
+                            self.socket.sendall(self.getGGABytes())
+                            self.connectionState = True
+                        elif line.find("HTTP/1.1 200 OK")>=0:
+                            #Request was valid
+                            self.socket.sendall(self.getGGABytes())
+                            self.connectionState = True
+            
+        except Exception as e:
+            print(e)
+        
+
     def readData(self):
         reconnectTry=1
         sleepTime=1
@@ -153,11 +230,6 @@ class NtripClient(object):
             found_header=False
             
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-            #if self.ssl:
-                #self.socket=ssl.wrap_socket(self.socket)
-                #self.socket=ssl.wrap_socket(self.socket, keyfile=None, certfile=None, server_side=False, cert_reqs=ssl.CERT_NONE, ssl_version=ssl.PROTOCOL_SSLv23, server_hostname=self.caster)
-            
 
             error_indicator = self.socket.connect_ex((self.caster, self.port))
             
@@ -194,10 +266,7 @@ class NtripClient(object):
                             self.headerFile.write(line+"\n")
 
                     for line in header_lines:
-                        
                         print(line)
-                        
-                        
                         if line.find("SOURCETABLE")>=0:
                             print("Mount point does not exist")
                             #sys.exit(1)
@@ -225,7 +294,8 @@ class NtripClient(object):
                     
                 data = "Initial data".encode()
                 
-                while data:
+                #while data:
+                while False:
 
                     try:
                         data=self.socket.recv(self.buffer)
@@ -260,7 +330,8 @@ class NtripClient(object):
 
                     if sleepTime>maxReconnectTime:
                         sleepTime=maxReconnectTime
-                #else:
+                else:
+                    print('max reconnect reached.l')
                     #sys.exit(1)
 
 
@@ -339,9 +410,11 @@ class NtripSerialStream():
             if isinstance(msg, pynmea2.types.talker.GGA):
                 latitude = msg.latitude
                 longitude = msg.longitude
+                height = msg.altitude
+                fixtype = msg.gps_qual
                 
                 print(f"Latitude: {latitude}, Longitude: {longitude}, Fixtype: {self.__getFixModeString(msg.gps_qual)}")
-                self.triggerEvents({'lat': latitude, 'lon': longitude})
+                self.triggerEvents({'lat': latitude, 'lon': longitude, 'alt':height, 'fixtype': fixtype})
                      
 
     def __getFixModeString(self, modeNumber):
