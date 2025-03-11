@@ -15,6 +15,7 @@ import datetime
 import threading
 import serial
 from . import pynmea2
+import base64
 
 
 version=0.5
@@ -23,8 +24,8 @@ useragent="Q-Ntrip"
 
 
 factor=2 # How much the sleep time increases with each failed attempt
-maxReconnect=100
-maxReconnectTime=1200
+maxReconnect=3
+maxReconnectTime=30
 sleepTime=1 # So the first one is 1 second
 
 
@@ -60,14 +61,14 @@ class NtripClient(object):
         self.verbose=verbose
         self.ssl=ssl
         self.host=host
-        self.V2=V2
+        self.V2=False
         self.headerFile=headerFile
         self.headerOutput=headerOutput
         self.maxConnectTime=maxConnectTime
         
         self.serialStreams = streams
         
-        self.socket=None
+        self.socket:socket.socket
         
         self.connectionState = False # indicates if ntrip connection has been established.
         
@@ -76,18 +77,27 @@ class NtripClient(object):
         self.uploadPositionThread = threading.Thread(target=self.positionUploadTask)
         self.uploadPositionThread.daemon = True  # makes the thread a daemon thread
         self.uploadPositionThread.start()   #start timer thread
+        
+        self.stopNtripConnection = threading.Event()
+        self.NtripConnectionThread = threading.Thread(target=self.readData)
+        self.NtripConnectionThread.daemon = True  # makes the thread a daemon thread
+        self.NtripConnectionThread.start()   #start timer thread
+        
 
         
     
     def positionUploadTask(self):
         while not self.stop_event.is_set():
-        
-            if self.connectionState:
+            if self.socket and self.connectionState:
                 self.socket.sendall(self.getGGABytes())         # Send GGS string to caster         
             time.sleep(15)   
 
     def stopThreads(self):
         self.stop_event.set()
+        self.stopNtripConnection.set()
+        self.connectionState = False
+        self.socket.close()
+        print('NTRIP client stopped.')
 
     def setPosition(self, lat, lon):
         self.flagN="N"
@@ -114,10 +124,6 @@ class NtripClient(object):
     def getMountPointBytes(self):
         
         # Benutzername und Passwort kodieren
-        credentials = self.user
-        encoded_credentials = base64.b64encode(credentials.encode('utf-8')).decode('utf-8')
-        
-        
         mountPointString = "GET %s HTTP/1.1\r\nUser-Agent: %s\r\nAuthorization: Basic %s\r\n" % (self.mountpoint, useragent, self.user)
 
         if self.host or self.V2:
@@ -130,6 +136,27 @@ class NtripClient(object):
         
         #return bytes(mountPointString,'ascii')
         return (mountPointString.encode('utf-8'))
+    
+    
+    def getMountPointReq(self):
+        
+        # Erstelle die Authentifizierungsinformationen
+        auth = self.user
+
+        # Erstelle die HTTP-Anfrage
+        request = (
+            f"GET {self.mountpoint} HTTP/1.1\r\n"
+            #f"Host: {self.host}\r\n"
+            f"Authorization: Basic {auth}\r\n"
+            f"User-Agent: ntrip-client/1.0\r\n"
+            f"\r\n"
+        )
+
+        # Sende die Anfrage über den Socket
+        return request.encode()
+    
+    
+    
 
     def getGGABytes(self):
         now = datetime.datetime.utcnow()
@@ -148,72 +175,7 @@ class NtripClient(object):
             xsum_calc = xsum_calc ^ ord(char)
         return "%02X" % xsum_calc
 
-    def getMountpoints(self):
-        try:
-            
-            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            
-            with self.socket as s:
-                error_indicator = s.connect_ex((self.caster, self.port))
-                print(f'Errorindicator: {error_indicator}')
-                print(self.getMountPointBytes())
-                self.socket.settimeout(1000)
-                s.sendall(self.getMountPointBytes())
-                found_header = False
-                
-                while not found_header:
-                    print('receice data')
-                    casterResponse=self.socket.recv(1024) #All the data
-                    
-                    print(casterResponse)
-
-                    header_lines = None
-                    try:
-                        header_lines = casterResponse.decode('utf-8').split("\r\n")
-                    except:
-                        print('error in header decoding.')
-
-                    for line in header_lines:
-                        if line=="":
-                            if not found_header:
-                                found_header=True
-                                if self.verbose:
-                                    print("End Of Header"+"\n")
-                        else:
-                            if self.verbose:
-                                print("Header: " + line+"\n")
-                        if self.headerOutput:
-                            self.headerFile.write(line+"\n")
-
-                    for line in header_lines:
-                        print(line)
-                        if line.find("SOURCETABLE")>=0:
-                            print("Mount point does not exist")
-                            #sys.exit(1)
-                        elif line.find("401 Unauthorized")>=0:
-                            print("Unauthorized request\n")
-                            #sys.exit(1)
-                        elif line.find("404 Not Found")>=0:
-                            print("Mount Point does not exist\n")
-                            #sys.exit(2)
-                        elif line.find("ICY 200 OK")>=0:
-                            print("ICY 200 OK")
-                            #Request was valid
-                            
-                            
-                            self.socket.sendall(self.getGGABytes())
-                            self.connectionState = True
-                        elif line.find("HTTP/1.0 200 OK")>=0:
-                            #Request was valid
-                            self.socket.sendall(self.getGGABytes())
-                            self.connectionState = True
-                        elif line.find("HTTP/1.1 200 OK")>=0:
-                            #Request was valid
-                            self.socket.sendall(self.getGGABytes())
-                            self.connectionState = True
-            
-        except Exception as e:
-            print(e)
+    
         
 
     def readData(self):
@@ -226,83 +188,92 @@ class NtripClient(object):
         if self.maxConnectTime > 0 :
             EndConnect=datetime.timedelta(seconds=self.maxConnectTime)
         
-        while reconnectTry<=maxReconnect:
-            found_header=False
-            
-            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        #while reconnectTry<=maxReconnect and not self.stopNtripConnection.is_set():
+        found_header=False
 
-            error_indicator = self.socket.connect_ex((self.caster, self.port))
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        error_indicator = self.socket.connect_ex((self.caster, self.port))
+        
+        while not self.stopNtripConnection.is_set():
+       # with self.socket as s:
+       
+            s = self.socket
             
             if error_indicator==0:
                 sleepTime = 1
                 connectTime=datetime.datetime.now()
 
-                self.socket.settimeout(1000)
-                self.socket.sendall(self.getMountPointBytes())
+                s.settimeout(1000)
+                print(self.getMountPointReq())
+                s.sendall(self.getMountPointReq())
+                try:
                 
-                while not found_header:
-                    
-                    casterResponse=self.socket.recv(1024) #All the data
-                    
-                   
-                    print(casterResponse)
+                    while not found_header:
+                        
+                        casterResponse=s.recv(1024) #All the data
+                        
+                        print(casterResponse)
 
-                    header_lines = None
-                    try:
-                        header_lines = casterResponse.decode('utf-8').split("\r\n")
-                    except:
-                        print('error in header decoding.')
+                        header_lines = None
+                        try:
+                            header_lines = casterResponse.decode('utf-8').split("\r\n")
+                        
 
-                    for line in header_lines:
-                        if line=="":
-                            if not found_header:
-                                found_header=True
-                                if self.verbose:
-                                    print("End Of Header"+"\n")
-                        else:
-                            if self.verbose:
-                                print("Header: " + line+"\n")
-                        if self.headerOutput:
-                            self.headerFile.write(line+"\n")
+                            for line in header_lines:
+                                if line=="":
+                                    if not found_header:
+                                        found_header=True
+                                        if self.verbose:
+                                            print("End Of Header"+"\n")
+                                else:
+                                    if self.verbose:
+                                        print("Header: " + line+"\n")
+                                if self.headerOutput:
+                                    self.headerFile.write(line+"\n")
 
-                    for line in header_lines:
-                        print(line)
-                        if line.find("SOURCETABLE")>=0:
-                            print("Mount point does not exist")
-                            #sys.exit(1)
-                        elif line.find("401 Unauthorized")>=0:
-                            print("Unauthorized request\n")
-                            #sys.exit(1)
-                        elif line.find("404 Not Found")>=0:
-                            print("Mount Point does not exist\n")
-                            #sys.exit(2)
-                        elif line.find("ICY 200 OK")>=0:
-                            print("ICY 200 OK")
-                            #Request was valid
-                            
-                            
-                            self.socket.sendall(self.getGGABytes())
-                            self.connectionState = True
-                        elif line.find("HTTP/1.0 200 OK")>=0:
-                            #Request was valid
-                            self.socket.sendall(self.getGGABytes())
-                            self.connectionState = True
-                        elif line.find("HTTP/1.1 200 OK")>=0:
-                            #Request was valid
-                            self.socket.sendall(self.getGGABytes())
-                            self.connectionState = True
+                            for line in header_lines:
+                                print(line)
+                                if line.find("SOURCETABLE")>=0:
+                                    print("Mount point does not exist")
+                                    #sys.exit(1)
+                                elif line.find("401 Unauthorized")>=0:
+                                    print("Unauthorized request\n")
+                                    #sys.exit(1)
+                                elif line.find("404 Not Found")>=0:
+                                    print("Mount Point does not exist\n")
+                                    #sys.exit(2)
+                                elif line.find("ICY 200 OK")>=0:
+                                    print("ICY 200 OK")
+                                    #Request was valid
+                                    
+                                    
+                                    s.sendall(self.getGGABytes())
+                                    self.connectionState = True
+                                elif line.find("HTTP/1.0 200 OK")>=0:
+                                    #Request was valid
+                                    s.sendall(self.getGGABytes())
+                                    self.connectionState = True
+                                elif line.find("HTTP/1.1 200 OK")>=0:
+                                    #Request was valid
+                                    s.sendall(self.getGGABytes())
+                                    self.connectionState = True
+                                
+                        except:
+                            print('error in header decoding.')
+                except Exception as e:  
+                    print(e)
                     
+                
                 data = "Initial data".encode()
                 
-                #while data:
-                while False:
-
+                while data:
+            
                     try:
-                        data=self.socket.recv(self.buffer)
-                        print(data)
+                        data=s.recv(self.buffer)
+                        #print(data)
 
-                        for s in self.serialStreams:
-                            s.writeToStream(data);
+                        for stream in self.serialStreams:
+                            stream.writeToStream(data);
                                 
                         if self.maxConnectTime :
                             if datetime.datetime.now() > connectTime+EndConnect:
@@ -318,36 +289,40 @@ class NtripClient(object):
                         if self.verbose:
                             print('Connection Error\n')
                         data=False
+                    except Exception as e:
+                        data=False
+                        print(e)
 
                 
-                self.socket.close()
-                self.socket=None
+                s.close()
+                s=None
 
-                if reconnectTry < maxReconnect :
-                    print( "%s No Connection to NtripCaster.  Trying again in %i seconds\n" % (datetime.datetime.now(), sleepTime))
-                    #time.sleep(sleepTime)
-                    #sleepTime *= factor
+                # if reconnectTry < maxReconnect and not self.stopNtripConnection.is_set():
+                #     print( "%s No Connection to NtripCaster.  Trying again in %i seconds\n" % (datetime.datetime.now(), sleepTime))
+                #     #time.sleep(sleepTime)
+                #     #sleepTime *= factor
 
-                    if sleepTime>maxReconnectTime:
-                        sleepTime=maxReconnectTime
-                else:
-                    print('max reconnect reached.l')
-                    #sys.exit(1)
+                #     if sleepTime>maxReconnectTime:
+                #         sleepTime=maxReconnectTime
+                # else:
+                #     print('max reconnect reached.l')
+                #     #sys.exit(1)
 
 
-                reconnectTry += 1
+                #     reconnectTry += 1
             else:
-                self.socket=None
+                s.close()
+                s=None
                 
-                print ("Error indicator: ", error_indicator)
+                print ("Connection error")
 
-                if reconnectTry < maxReconnect :
-                    print( "%s No Connection to NtripCaster.  Trying again in %i seconds\n" % (datetime.datetime.now(), sleepTime))
-                    time.sleep(sleepTime)
-                    sleepTime *= factor
-                    if sleepTime>maxReconnectTime:
-                        sleepTime=maxReconnectTime
-                reconnectTry += 1
+                # if reconnectTry < maxReconnect :
+                #     print( "%s No Connection to NtripCaster.  Trying again in %i seconds\n" % (datetime.datetime.now(), sleepTime))
+                #     time.sleep(sleepTime)
+                #     sleepTime *= factor
+                #     if sleepTime>maxReconnectTime:
+                #         sleepTime=maxReconnectTime
+                # reconnectTry += 1
 
 
 class NtripSerialStream():
@@ -356,6 +331,8 @@ class NtripSerialStream():
         self.baudrate = baudrate
         self.serial = serial.Serial(port, baudrate, timeout=1)
         self.buffer = bytearray()
+        
+        self.stopSerial = threading.Event()
         self.thread = threading.Thread(target=self.runProcess)
         self.thread.daemon = True  # makes the thread a daemon thread
 
@@ -365,14 +342,18 @@ class NtripSerialStream():
         print('Initialized serialport ' + str(self.port) + ' with baudrate ' + str(self.baudrate))
         self.thread.start()   #start timer thread
         
+        
 
     def runProcess(self):
-        #self.__resetTestRun()
-        self.__read_from_serial();
+        while not self.stopSerial.is_set():
+            #self.__resetTestRun()
+            self.__read_from_serial()
 
     def stopSerialStream(self):
+        print('stop Serialstream')
+        self.stopSerial.set()
         self.serial.close()
-        #self.thread.stop()
+        
     
     def writeToStream(self, txdata):
         if self.sendCorrectionData:

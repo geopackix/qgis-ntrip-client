@@ -16,6 +16,7 @@ sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt, QTimer, QVariant
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QLineEdit, QVBoxLayout, QWidget
+import threading
 
 # Initialize Qt resources from file resources.py
 from .resources import *
@@ -188,6 +189,8 @@ class QNTRIPClient:
         """Cleanup necessary items here when plugin dockwidget is closed"""
 
         #print "** CLOSING QNTRIPClient"
+        
+        self.stopNtripClient()
 
         # disconnects
         self.dockwidget.closingPlugin.disconnect(self.onClosePlugin)
@@ -217,8 +220,9 @@ class QNTRIPClient:
     #--------------------------------------------------------------------------
     def stopNtripClient(self):
         self.serialStream.stopSerialStream()
-        self.client.stopThreads()
         self.out(f'Disconnect serial stream.')
+        self.client.stopThreads()
+        self.out(f'Ntrip client stopped.')
         
 
     def startNtripClient(self):
@@ -245,7 +249,7 @@ class QNTRIPClient:
             ntripArgs['user']=user+":"+pw
             
             ntripArgs['caster']=host
-            #ntripArgs['host']=host
+            ntripArgs['host']=host
             ntripArgs['port']=int(port)
             print(f'Mountpoint:{mp}')
             ntripArgs['mountpoint']=mp
@@ -256,12 +260,9 @@ class QNTRIPClient:
             ntripArgs['V2']=False
             #serialStream = NtripSerialStream(serial,int(baud))
             ntripArgs['streams'] = [self.serialStream]
-            
-            
-            
+        
             self.client = NtripClient(**ntripArgs)
-            self.client.getMountpoints()
-            #client.readData()
+            self.client.readData()
             self.out(f'Connect to NTRIP caster {host}.')
         except Exception as e:
             print(f"Fehler beim Starten des Ntrip Clients: {e}")    
