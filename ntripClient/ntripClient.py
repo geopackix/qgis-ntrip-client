@@ -88,7 +88,7 @@ class NtripClient(object):
     
     def positionUploadTask(self):
         while not self.stop_event.is_set():
-            if self.socket and self.connectionState:
+            if self.connectionState:
                 self.socket.sendall(self.getGGABytes())         # Send GGS string to caster         
             time.sleep(15)   
 
@@ -202,6 +202,7 @@ class NtripClient(object):
             if error_indicator==0:
                 sleepTime = 1
                 connectTime=datetime.datetime.now()
+                data = None
 
                 s.settimeout(1000)
                 print(self.getMountPointReq())
@@ -217,8 +218,7 @@ class NtripClient(object):
                         header_lines = None
                         try:
                             header_lines = casterResponse.decode('utf-8').split("\r\n")
-                        
-
+                    
                             for line in header_lines:
                                 if line=="":
                                     if not found_header:
@@ -245,27 +245,28 @@ class NtripClient(object):
                                 elif line.find("ICY 200 OK")>=0:
                                     print("ICY 200 OK")
                                     #Request was valid
-                                    
-                                    
                                     s.sendall(self.getGGABytes())
                                     self.connectionState = True
+                                    data = "Initial data".encode()
                                 elif line.find("HTTP/1.0 200 OK")>=0:
                                     #Request was valid
                                     s.sendall(self.getGGABytes())
                                     self.connectionState = True
+                                    data = "Initial data".encode()
                                 elif line.find("HTTP/1.1 200 OK")>=0:
                                     #Request was valid
                                     s.sendall(self.getGGABytes())
                                     self.connectionState = True
+                                    data = "Initial data".encode()
                                 
                         except:
                             print('error in header decoding.')
+                            
+                    data = "Initial data".encode()
                 except Exception as e:  
                     print(e)
+                    continue
                     
-                
-                data = "Initial data".encode()
-                
                 while data:
             
                     try:
@@ -346,6 +347,7 @@ class NtripSerialStream():
 
     def runProcess(self):
         while not self.stopSerial.is_set():
+            print('run serial read process')
             #self.__resetTestRun()
             self.__read_from_serial()
 
@@ -382,8 +384,9 @@ class NtripSerialStream():
                         nmea_data = line.decode('ascii', errors='ignore')
                         self.__process_nmea_data(nmea_data)
      
-            except:
-                continue
+            except Exception as e:
+                print(e)
+                
 
     def __process_nmea_data(self, line):
         #try:

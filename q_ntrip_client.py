@@ -262,7 +262,7 @@ class QNTRIPClient:
             ntripArgs['streams'] = [self.serialStream]
         
             self.client = NtripClient(**ntripArgs)
-            self.client.readData()
+            #self.client.readData()
             self.out(f'Connect to NTRIP caster {host}.')
         except Exception as e:
             print(f"Fehler beim Starten des Ntrip Clients: {e}")    
