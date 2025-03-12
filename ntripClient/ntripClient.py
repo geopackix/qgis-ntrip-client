@@ -70,6 +70,8 @@ class NtripClient(object):
         
         self.socket:socket.socket
         
+        self.events = []
+        
         self.connectionState = False # indicates if ntrip connection has been established.
         
         
@@ -84,6 +86,13 @@ class NtripClient(object):
         self.NtripConnectionThread.start()   #start timer thread
         
 
+    def registerCorrectionDataEventListener(self,callback):
+        self.events.append(callback)
+        print('registerCorrectionDataEventListener')
+
+    def triggerCorrectionDataEvents(self,data):
+        for e in self.events:
+            e(data)
         
     
     def positionUploadTask(self):
@@ -95,6 +104,7 @@ class NtripClient(object):
     def stopThreads(self):
         self.stop_event.set()
         self.stopNtripConnection.set()
+        self.triggerCorrectionDataEvents(False)
         self.connectionState = False
         self.socket.close()
         print('NTRIP client stopped.')
@@ -274,6 +284,7 @@ class NtripClient(object):
                         #print(data)
 
                         for stream in self.serialStreams:
+                            self.triggerCorrectionDataEvents(True)
                             stream.writeToStream(data);
                                 
                         if self.maxConnectTime :

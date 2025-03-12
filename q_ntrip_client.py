@@ -221,8 +221,10 @@ class QNTRIPClient:
     def stopNtripClient(self):
         self.serialStream.stopSerialStream()
         self.out(f'Disconnect serial stream.')
+        self.posIcon(0)
         self.client.stopThreads()
         self.out(f'Ntrip client stopped.')
+        
         
 
     def startNtripClient(self):
@@ -262,6 +264,7 @@ class QNTRIPClient:
             ntripArgs['streams'] = [self.serialStream]
         
             self.client = NtripClient(**ntripArgs)
+            self.client.registerCorrectionDataEventListener(self.updateRtcmState)
             self.out(f'Connect to NTRIP caster {host}.')
         except Exception as e:
             print(f"Fehler beim Starten des Ntrip Clients: {e}")    
@@ -272,6 +275,10 @@ class QNTRIPClient:
         
         self.set_marker(longitude, latitude, data)
         
+        self.posIcon( data['fixtype'])
+        
+    def posIcon(self, fixtype):
+        
         #icon
         ft_icon_no = f'{self.plugin_dir}/noPos.png'
         ft_icon_3d = f'{self.plugin_dir}/pos4.png'
@@ -279,23 +286,34 @@ class QNTRIPClient:
         ft_icon_rtkfix = f'{self.plugin_dir}/pos.png'
         ft_icon_dgps = f'{self.plugin_dir}/pos3.png'
         
-        if(data['fixtype'] == 1):
+        if(fixtype == 1):
             self.dockwidget.fixtypeIcon.setPixmap(QPixmap(ft_icon_3d))
-        elif(data['fixtype'] == 2):
+        elif(fixtype == 2):
             self.dockwidget.fixtypeIcon.setPixmap(QPixmap(ft_icon_dgps))
-        elif(data['fixtype'] == 4):
+        elif(fixtype == 4):
             self.dockwidget.fixtypeIcon.setPixmap(QPixmap(ft_icon_rtkfix))
-        elif(data['fixtype'] == 5):
+        elif(fixtype == 5):
             self.dockwidget.fixtypeIcon.setPixmap(QPixmap(ft_icon_rtkfloat))
-    
         else:
-            self.dockwidget.fixtypeIcon.setPixmap(QPixmap(ft_icon_no))
+            self.dockwidget.fixtypeIcon.setPixmap(QPixmap(ft_icon_no)) 
+    
+    def updateRtcmState(self, rtcmstatus):
+        print('update rtcm state')
+        self.rtcmIcon(rtcmstatus)
+    
+    def rtcmIcon(self, receiveCorrections):
         
         
         
+        #icon
+        rtcm_icon_on = f'{self.plugin_dir}/rtcmOn.png'
+        rtcm_icon_off = f'{self.plugin_dir}/rtcmOff.png'
+    
         
-        
-        
+        if(receiveCorrections == True):
+            self.dockwidget.receiveCorrectionsIcon.setPixmap(QPixmap(rtcm_icon_on))
+        else:
+            self.dockwidget.receiveCorrectionsIcon.setPixmap(QPixmap(rtcm_icon_off)) 
         
      
     def set_marker(self, x, y, data):

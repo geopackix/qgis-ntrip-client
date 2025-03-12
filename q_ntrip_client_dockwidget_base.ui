@@ -137,6 +137,25 @@
        </spacer>
       </item>
       <item>
+       <widget class="QLabel" name="receiveCorrectionsIcon">
+        <property name="maximumSize">
+         <size>
+          <width>96</width>
+          <height>48</height>
+         </size>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+        <property name="pixmap">
+         <pixmap>rtcmOff.png</pixmap>
+        </property>
+        <property name="scaledContents">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QLabel" name="fixtypeIcon">
         <property name="enabled">
          <bool>true</bool>
@@ -157,7 +176,7 @@
          <string/>
         </property>
         <property name="pixmap">
-         <pixmap>pos.png</pixmap>
+         <pixmap>noPos.png</pixmap>
         </property>
         <property name="scaledContents">
          <bool>true</bool>
