@@ -277,6 +277,11 @@ class QNTRIPClient:
         
         self.posIcon( data['fixtype'])
         
+        print(data['raw'])
+        
+        loghistory = self.dockwidget.logReceiver.toPlainText()
+        self.dockwidget.logReceiver.setPlainText( data['raw'] + '\n'+ loghistory)
+        
     def posIcon(self, fixtype):
         
         #icon
@@ -376,7 +381,8 @@ class QNTRIPClient:
     def create_temp_layer(self):
     # Prüfen, ob der Layer "points" bereits existiert
     
-        layername = "gnss_points"
+        #layername = "gnss_points"
+        layername = self.dockwidget.layerName.text() or "gnss_points"
         
         existing_layers = QgsProject.instance().mapLayersByName(layername)
         if existing_layers:
@@ -413,6 +419,25 @@ class QNTRIPClient:
         history = self.dockwidget.output.toPlainText()
         
         self.dockwidget.output.setPlainText( iso_timestamp + ' ' + message + '\n'+ history)
+
+
+    def on_checkbox_record_Receiver(self):
+        #get value of checkbox
+        isChecked = self.dockwidget.checkBoxRecordReceiver.isChecked()
+        print(f'Reciever isChecked: {isChecked}')
+        
+    def on_checkbox_record_Ntrip(self):
+        #get value of checkbox
+        isChecked = self.dockwidget.checkBoxRecordNtrip.isChecked()
+        print(f'NTRIP isChecked: {isChecked}')
+        
+        file = self.dockwidget.fileSelectorNtripRecord.filePath()
+        
+        if(isChecked):
+            print(file) 
+        
+        
+
 
     def run(self):
         """Run method that loads and starts the plugin"""
@@ -474,6 +499,9 @@ class QNTRIPClient:
             self.dockwidget.infoBtn.clicked.connect(self.on_info_button_click)
             self.dockwidget.connectBtn.clicked.connect(self.startNtripClient)
             self.dockwidget.disconnectBtn.clicked.connect(self.stopNtripClient)
+            
+            self.dockwidget.checkBoxRecordReceiver.stateChanged.connect(self.on_checkbox_record_Receiver)
+            self.dockwidget.checkBoxRecordNtrip.stateChanged.connect(self.on_checkbox_record_Ntrip)
             
             self.dockwidget.show()
             

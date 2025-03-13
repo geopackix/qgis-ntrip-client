@@ -409,7 +409,7 @@ class NtripSerialStream():
                 fixtype = msg.gps_qual
                 
                 print(f"Latitude: {latitude}, Longitude: {longitude}, Fixtype: {self.__getFixModeString(msg.gps_qual)}")
-                self.triggerEvents({'lat': latitude, 'lon': longitude, 'alt':height, 'fixtype': fixtype})
+                self.triggerEvents({'lat': latitude, 'lon': longitude, 'alt':height, 'fixtype': fixtype, 'raw':line})
                      
 
     def __getFixModeString(self, modeNumber):
