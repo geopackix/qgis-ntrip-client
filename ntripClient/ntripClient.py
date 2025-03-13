@@ -349,6 +349,7 @@ class NtripSerialStream():
         self.thread.daemon = True  # makes the thread a daemon thread
 
         self.events = []
+        self.rawevents = []
 
         self.sendCorrectionData = True      #indicates weather to send correction data or not
         print('Initialized serialport ' + str(self.port) + ' with baudrate ' + str(self.baudrate))
@@ -390,6 +391,8 @@ class NtripSerialStream():
                     # Trenne den Puffer an der ersten neuen Zeile
                     line, buffer = buffer.split(b'\n', 1)
                     
+                    self.triggerRawEvents(line)
+                    
                     # Überprüfe, ob die Zeile NMEA-Daten enthält
                     if line.startswith(b'$'):
                         nmea_data = line.decode('ascii', errors='ignore')
@@ -409,7 +412,7 @@ class NtripSerialStream():
                 fixtype = msg.gps_qual
                 
                 print(f"Latitude: {latitude}, Longitude: {longitude}, Fixtype: {self.__getFixModeString(msg.gps_qual)}")
-                self.triggerEvents({'lat': latitude, 'lon': longitude, 'alt':height, 'fixtype': fixtype, 'raw':line})
+                self.triggerEvents({'lat': latitude, 'lon': longitude, 'alt':height, 'fixtype': fixtype})
                      
 
     def __getFixModeString(self, modeNumber):
@@ -428,7 +431,14 @@ class NtripSerialStream():
             
     def registerEventListener(self,callback):
         self.events.append(callback)
+        
+    def registerRawEventListener(self,callback):
+        self.rawevents.append(callback)
 
     def triggerEvents(self,data):
         for e in self.events:
+            e(data)
+            
+    def triggerRawEvents(self,data):
+        for e in self.rawevents:
             e(data)

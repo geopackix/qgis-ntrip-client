@@ -239,6 +239,7 @@ class QNTRIPClient:
             QgsProject.instance().addMapLayer(self.layer)
             
             self.serialStream.registerEventListener(self.update_gnss_position)
+            self.serialStream.registerRawEventListener(self.update_gnss)
             
             ntripArgs = {}
             ntripArgs['lat']= 48.6
@@ -277,10 +278,9 @@ class QNTRIPClient:
         
         self.posIcon( data['fixtype'])
         
-        print(data['raw'])
         
-        loghistory = self.dockwidget.logReceiver.toPlainText()
-        self.dockwidget.logReceiver.setPlainText( data['raw'] + '\n'+ loghistory)
+    def update_gnss(self, data):
+        self.dockwidget.logReceiver.setPlainText( data.decode('utf-8', errors='ignore'))
         
     def posIcon(self, fixtype):
         
