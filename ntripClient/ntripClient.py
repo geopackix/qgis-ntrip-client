@@ -12,10 +12,12 @@ import os
 import ssl
 from optparse import OptionParser
 import datetime
-import threading
+#import threading
 import serial
 from . import pynmea2
 import base64
+
+from qgis.core import QgsTask, QgsApplication
 
 
 version=0.5
@@ -80,6 +82,11 @@ class NtripClient(object):
         self.uploadPositionThread = threading.Thread(target=self.positionUploadTask)
         self.uploadPositionThread.daemon = True  # makes the thread a daemon thread
         self.uploadPositionThread.start()   #start timer thread
+        
+        
+        
+        
+        
         
         self.stopNtripConnection = threading.Event()
         self.NtripConnectionThread = threading.Thread(target=self.readData)

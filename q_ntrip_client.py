@@ -239,7 +239,7 @@ class QNTRIPClient:
             QgsProject.instance().addMapLayer(self.layer)
             
             self.serialStream.registerEventListener(self.update_gnss_position)
-            self.serialStream.registerRawEventListener(self.update_gnss_log)
+            #self.serialStream.registerRawEventListener(self.update_gnss_log)
             
             ntripArgs = {}
             ntripArgs['lat']= 48.6
@@ -266,7 +266,7 @@ class QNTRIPClient:
         
             self.client = NtripClient(**ntripArgs)
             self.client.registerCorrectionDataEventListener(self.updateRtcmState)
-            self.client.registerNtripLogListener(self.update_ntrip_log)
+            #self.client.registerNtripLogListener(self.update_ntrip_log)
             self.out(f'Connect to NTRIP caster {host}.')
         except Exception as e:
             print(f"Fehler beim Starten des Ntrip Clients: {e}")    
@@ -283,14 +283,21 @@ class QNTRIPClient:
     def update_gnss_log(self, data):
         #append data to receiver log 
         try:
-            self.dockwidget.logReceiver.append(data.decode('utf-8', errors='ignore'))
+            length = len(data)
+            print(length)
+            #self.dockwidget.logReceiver.setText(str(length))
+            #self.dockwidget.logReceiver.append(data.decode('utf-8', errors='ignore'))
         except Exception as e:
             print(f"Error decoding data: {e}")
             
     def update_ntrip_log(self, data):
         #append data to ntrip log 
         try:
-            self.dockwidget.logNtrip.append(self.format_hex_data(data, 16))
+            length = len(data)
+            print(length)
+            #self.dockwidget.logNtrip.setText(str(length))
+            
+            #self.dockwidget.logNtrip.append(self.format_hex_data(data, 16))
         except Exception as e:
             print(f"Error decoding data: {e}")
     
@@ -463,79 +470,78 @@ class QNTRIPClient:
 
     def run(self):
         """Run method that loads and starts the plugin"""
-        
-       
-        
+        try:
+            
+            if not self.pluginIsActive:
+                self.pluginIsActive = True
+                
+                ## READ DEFAULT Config
+                
+                # Standardwerte definieren
+                default_values = {
+                    'Host': '',
+                    'Port': '2101',
+                    'Mountpoint': '',
+                    'User': '',
+                    'Password': '',
+                    'Serialport': '',
+                    'SerialBaud': ''
+                }
+                
+                self.config_file = os.path.join(os.path.dirname(__file__),'config.ini')
+                self.config = configparser.ConfigParser(defaults=default_values)
+                self.config.read(self.config_file)
+                
+            
 
+                # dockwidget may not exist if:
+                #    first run of plugin
+                #    removed on close (see self.onClosePlugin method)
+                if self.dockwidget == None:
+                    # Create the dockwidget (after translation) and keep reference
+                    self.dockwidget = QNTRIPClientDockWidget()
 
-        if not self.pluginIsActive:
-            self.pluginIsActive = True
-            
-            ## READ DEFAULT Config
-            
-            # Standardwerte definieren
-            default_values = {
-                'Host': '',
-                'Port': '2101',
-                'Mountpoint': '',
-                'User': '',
-                'Password': '',
-                'Serialport': '',
-                'SerialBaud': ''
-            }
-            
-            self.config_file = os.path.join(os.path.dirname(__file__),'config.ini')
-            self.config = configparser.ConfigParser(defaults=default_values)
-            self.config.read(self.config_file)
-            
-           
+                # connect to provide cleanup on closing of dockwidget
+                self.dockwidget.closingPlugin.connect(self.onClosePlugin)
 
-            # dockwidget may not exist if:
-            #    first run of plugin
-            #    removed on close (see self.onClosePlugin method)
-            if self.dockwidget == None:
-                # Create the dockwidget (after translation) and keep reference
-                self.dockwidget = QNTRIPClientDockWidget()
-
-            # connect to provide cleanup on closing of dockwidget
-            self.dockwidget.closingPlugin.connect(self.onClosePlugin)
-
-            # show the dockwidget
-            # TODO: fix to allow choice of dock location
-            self.iface.addDockWidget(Qt.TopDockWidgetArea, self.dockwidget)
+                # show the dockwidget
+                # TODO: fix to allow choice of dock location
+                self.iface.addDockWidget(Qt.TopDockWidgetArea, self.dockwidget)
+                
+                
+                self.dockwidget.inputHost.setText(self.config ['DEFAULT']['Host'])
+                self.dockwidget.inputPort.setText(self.config ['DEFAULT']['Port'])
+                self.dockwidget.inputMp.setText(self.config ['DEFAULT']['Mountpoint'])
+                self.dockwidget.inputUser.setText(self.config ['DEFAULT']['User'])
+                self.dockwidget.inputPassword.setText(self.config ['DEFAULT']['Password'])
+                self.dockwidget.inputSPort.setText(self.config ['DEFAULT']['Serialport'])
+                self.dockwidget.inputSBaud.setText(self.config ['DEFAULT']['SerialBaud'])
+                
+                ft_icon_no = f'{self.plugin_dir}/noPos.png'
+                self.dockwidget.fixtypeIcon.setPixmap(QPixmap(ft_icon_no))
             
+                
+                
+                self.dockwidget.infoBtn.clicked.connect(self.on_info_button_click)
+                self.dockwidget.connectBtn.clicked.connect(self.startNtripClient)
+                self.dockwidget.disconnectBtn.clicked.connect(self.stopNtripClient)
+                
+                self.dockwidget.checkBoxRecordReceiver.stateChanged.connect(self.on_checkbox_record_Receiver)
+                self.dockwidget.checkBoxRecordNtrip.stateChanged.connect(self.on_checkbox_record_Ntrip)
+                
+                self.dockwidget.show()
+                
+                
+                
             
-            self.dockwidget.inputHost.setText(self.config ['DEFAULT']['Host'])
-            self.dockwidget.inputPort.setText(self.config ['DEFAULT']['Port'])
-            self.dockwidget.inputMp.setText(self.config ['DEFAULT']['Mountpoint'])
-            self.dockwidget.inputUser.setText(self.config ['DEFAULT']['User'])
-            self.dockwidget.inputPassword.setText(self.config ['DEFAULT']['Password'])
-            self.dockwidget.inputSPort.setText(self.config ['DEFAULT']['Serialport'])
-            self.dockwidget.inputSBaud.setText(self.config ['DEFAULT']['SerialBaud'])
-            
-            ft_icon_no = f'{self.plugin_dir}/noPos.png'
-            self.dockwidget.fixtypeIcon.setPixmap(QPixmap(ft_icon_no))
-        
-            
-            
-            self.dockwidget.infoBtn.clicked.connect(self.on_info_button_click)
-            self.dockwidget.connectBtn.clicked.connect(self.startNtripClient)
-            self.dockwidget.disconnectBtn.clicked.connect(self.stopNtripClient)
-            
-            self.dockwidget.checkBoxRecordReceiver.stateChanged.connect(self.on_checkbox_record_Receiver)
-            self.dockwidget.checkBoxRecordNtrip.stateChanged.connect(self.on_checkbox_record_Ntrip)
-            
-            self.dockwidget.show()
-            
-            
-            
-        
-            
-            #self.layer.renderer().setSymbol()
-            
-            #self.timer = QTimer()
-            #self.timer.timeout.connect(self.update_marker)
-            #self.timer.start(1000)  # Aktualisiere alle 5 Sekunden
+                
+                #self.layer.renderer().setSymbol()
+                
+                #self.timer = QTimer()
+                #self.timer.timeout.connect(self.update_marker)
+                #self.timer.start(1000)  # Aktualisiere alle 5 Sekunden
+        except Exception as e:
+            print(f"Fehler beim Starten des Plugins: {e}")
             
             
         
