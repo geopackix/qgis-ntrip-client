@@ -239,7 +239,7 @@ class QNTRIPClient:
             QgsProject.instance().addMapLayer(self.layer)
             
             self.serialStream.registerEventListener(self.update_gnss_position)
-            self.serialStream.registerRawEventListener(self.update_gnss)
+            self.serialStream.registerRawEventListener(self.update_gnss_log)
             
             ntripArgs = {}
             ntripArgs['lat']= 48.6
@@ -266,6 +266,7 @@ class QNTRIPClient:
         
             self.client = NtripClient(**ntripArgs)
             self.client.registerCorrectionDataEventListener(self.updateRtcmState)
+            self.client.registerNtripLogListener(self.update_ntrip_log)
             self.out(f'Connect to NTRIP caster {host}.')
         except Exception as e:
             print(f"Fehler beim Starten des Ntrip Clients: {e}")    
@@ -279,11 +280,29 @@ class QNTRIPClient:
         self.posIcon( data['fixtype'])
         
         
-    def update_gnss(self, data):
+    def update_gnss_log(self, data):
+        #append data to receiver log 
         try:
             self.dockwidget.logReceiver.append(data.decode('utf-8', errors='ignore'))
         except Exception as e:
             print(f"Error decoding data: {e}")
+            
+    def update_ntrip_log(self, data):
+        #append data to ntrip log 
+        try:
+            self.dockwidget.logNtrip.append(self.format_hex_data(data, 16))
+        except Exception as e:
+            print(f"Error decoding data: {e}")
+    
+    def format_hex_data(self,binary_data, bytes_per_line=16):
+        hex_data = binary_data.hex()
+        formatted_hex = ' '.join(hex_data[i:i+2] for i in range(0, len(hex_data), 2))
+        
+        lines = []
+        for i in range(0, len(formatted_hex), bytes_per_line * 3):
+            lines.append(formatted_hex[i:i + bytes_per_line * 3])
+        
+        return '\n'.join(lines)
         
     def posIcon(self, fixtype):
         

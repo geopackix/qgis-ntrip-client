@@ -71,6 +71,7 @@ class NtripClient(object):
         self.socket:socket.socket
         
         self.events = []
+        self.rawevents = []
         
         self.connectionState = False # indicates if ntrip connection has been established.
         
@@ -92,6 +93,14 @@ class NtripClient(object):
 
     def triggerCorrectionDataEvents(self,data):
         for e in self.events:
+            e(data)
+            
+    def registerNtripLogListener(self,callback):
+        self.rawevents.append(callback)
+        print('registerCorrectionDataEventListener')
+        
+    def triggerRawDataEvents(self,data):
+        for e in self.rawevents:
             e(data)
         
     
@@ -281,6 +290,8 @@ class NtripClient(object):
             
                     try:
                         data=s.recv(self.buffer)
+                        
+                        self.triggerRawDataEvents(data)
                         #print(data)
 
                         for stream in self.serialStreams:
