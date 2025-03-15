@@ -391,7 +391,7 @@ class NtripSerialStream():
                     # Trenne den Puffer an der ersten neuen Zeile
                     line, buffer = buffer.split(b'\n', 1)
                     
-                    self.triggerRawEvents(line)
+                    self.triggerRawEvents(line.rstrip())
                     
                     # Überprüfe, ob die Zeile NMEA-Daten enthält
                     if line.startswith(b'$'):

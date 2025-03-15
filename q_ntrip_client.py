@@ -280,7 +280,10 @@ class QNTRIPClient:
         
         
     def update_gnss(self, data):
-        self.dockwidget.logReceiver.setPlainText( data.decode('utf-8', errors='ignore'))
+        try:
+            self.dockwidget.logReceiver.append(data.decode('utf-8', errors='ignore'))
+        except Exception as e:
+            print(f"Error decoding data: {e}")
         
     def posIcon(self, fixtype):
         

@@ -125,7 +125,7 @@
     <item row="3" column="0">
      <widget class="QTabWidget" name="tabWidget">
       <property name="currentIndex">
-       <number>0</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="ConnectionTab">
        <attribute name="title">
@@ -298,7 +298,7 @@
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_3">
            <item>
-            <widget class="QPlainTextEdit" name="logReceiver"/>
+            <widget class="QTextEdit" name="logReceiver"/>
            </item>
            <item>
             <layout class="QHBoxLayout" name="horizontalLayout_6">
