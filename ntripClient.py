@@ -90,6 +90,37 @@ class NtripClient(object):
         
         self.sendGGAToCaster = True
         
+        self.logData = False
+        self.dockwidget.checkBoxRecordNtrip.stateChanged.connect(self.on_cb_changed)
+        self.dockwidget.fileSelectorNtripRecord.fileChanged.connect(self.on_path_changed)
+
+    ###
+    # Write log file
+    ###
+    
+    def on_path_changed(self):
+        path = self.dockwidget.fileSelectorNtripRecord.filePath()   
+        #print(f'Log file path has changed to {path}')
+        if path:
+            self.openFile(path)
+        else:
+            self.closeFile()
+
+    def on_cb_changed(self):
+        cb_val =  self.dockwidget.checkBoxRecordNtrip.isChecked()
+        self.logData = cb_val
+        
+    def openFile(self, file):
+        self.file = open(file, 'ab')
+        
+    def writeToFile(self, data):
+        if self.logData:
+            if not self.file.closed:
+                self.file.write(data)   
+    def closeFile(self):
+        if not self.file.closed:
+            self.file.close()        
+
 
     def registerCorrectionDataEventListener(self,callback):
         self.events.append(callback)
@@ -310,8 +341,9 @@ class NtripClient(object):
                         
                         self.countReceivedData(data)
                         
-                        #self.triggerRawDataEvents(data)
-                        #print(data)
+                        if self.logData:
+                            self.writeToFile(data)
+                        
 
                         for stream in self.serialStreams:
                             self.triggerCorrectionDataEvents(True)
@@ -321,7 +353,7 @@ class NtripClient(object):
                             if datetime.datetime.now() > connectTime+EndConnect:
                                 if self.verbose:
                                     print("Connection Time exceeded\n")
-                                #sys.exit(0)
+                                
 
                     except socket.timeout:
                         if self.verbose:
@@ -339,19 +371,7 @@ class NtripClient(object):
                 s.close()
                 s=None
 
-                # if reconnectTry < maxReconnect and not self.stopNtripConnection.is_set():
-                #     print( "%s No Connection to NtripCaster.  Trying again in %i seconds\n" % (datetime.datetime.now(), sleepTime))
-                #     #time.sleep(sleepTime)
-                #     #sleepTime *= factor
 
-                #     if sleepTime>maxReconnectTime:
-                #         sleepTime=maxReconnectTime
-                # else:
-                #     print('max reconnect reached.l')
-                #     #sys.exit(1)
-
-
-                #     reconnectTry += 1
             else:
                 s.close()
                 s=None

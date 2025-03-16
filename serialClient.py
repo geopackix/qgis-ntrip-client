@@ -45,7 +45,7 @@ class NtripSerialStream():
     
     def on_path_changed(self):
         path = self.dockwidget.fileSelectorReceiverRecord.filePath()   
-        print(f'Log file path has changed to {path}')
+        #print(f'Log file path has changed to {path}')
         if path:
             self.openFile(path)
         else:
@@ -54,7 +54,6 @@ class NtripSerialStream():
     def on_cb_changed(self):
         cb_val =  self.dockwidget.checkBoxRecordReceiver.isChecked()
         self.logData = cb_val
-        
         
     def countReceivedData(self,data):
         self.dataReceived += len(data)
@@ -65,19 +64,19 @@ class NtripSerialStream():
     def countRxData(self):
         while not self.stop_countSerialRxEvent.is_set():
             rxDataSize = self.dataReceived
-            print(f'SERIAL - Received {rxDataSize} Bytes before reset.')
+            #print(f'SERIAL - Received {rxDataSize} Bytes before reset.')
             self.dockwidget.lblReceivedSerialData.setText(f'{rxDataSize} bytes/s')
             self.resetReceivedData()
             time.sleep(1) 
         
     def runProcess(self):
         while not self.stopSerial.is_set():
-            print('run serial read process')
+            #print('run serial read process')
             #self.__resetTestRun()
             self.__read_from_serial()
 
     def stopSerialStream(self):
-        print('stop Serialstream')
+        #print('stop Serialstream')
         
         self.dataReceived = 0;
         self.dockwidget.lblReceivedSerialData.setText(f'{self.dataReceived} bytes/s')
@@ -116,12 +115,7 @@ class NtripSerialStream():
                 self.file.write(data)   
     def closeFile(self):
         if not self.file.closed:
-            self.file.close()
-    
-    def switchLogToFile(self,bol):
-        
-        self.logData = bol
-       
+            self.file.close()  
         
     def __read_from_serial(self):
 

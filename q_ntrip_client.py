@@ -440,21 +440,6 @@ class QNTRIPClient:
         
         self.dockwidget.output.setPlainText( iso_timestamp + ' ' + message + '\n'+ history)
 
-
-    def on_checkbox_record_Receiver(self):
-        #get value of checkbox
-        isChecked = self.dockwidget.checkBoxRecordReceiver.isChecked()
-        print(f'Reciever isChecked: {isChecked}')
-        
-    def on_checkbox_record_Ntrip(self):
-        #get value of checkbox
-        isChecked = self.dockwidget.checkBoxRecordNtrip.isChecked()
-        print(f'NTRIP isChecked: {isChecked}')
-        
-        file = self.dockwidget.fileSelectorNtripRecord.filePath()
-        
-        if(isChecked):
-            print(file) 
         
                 
     def run(self):
