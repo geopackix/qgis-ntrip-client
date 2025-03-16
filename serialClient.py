@@ -50,13 +50,11 @@ class NtripSerialStream():
     def writeToStream(self, txdata):
         
         self.sendCorrectionData = self.dockwidget.cb_send_correction.isChecked()
-        print(self.sendCorrectionData)
         
         #icon
         rtcm_icon_on = f'{os.path.dirname(__file__)}/rtcmOn.png'
         rtcm_icon_off = f'{os.path.dirname(__file__)}/rtcmOff.png'
     
-        
         if self.sendCorrectionData:
             self.dockwidget.receiveCorrectionsIcon.setPixmap(QPixmap(rtcm_icon_on))
             print('write date to stream ' + str(self.port))

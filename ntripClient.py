@@ -39,7 +39,8 @@ class NtripClient(object):
                  headerFile=sys.stderr,
                  headerOutput=False,
                  maxConnectTime=0,
-                 streams = []
+                 streams = [],
+                 dockwidget = None
                  ):
         self.buffer=buffer
         self.user=base64.b64encode(bytes(user,'utf-8')).decode("utf-8")
@@ -66,21 +67,28 @@ class NtripClient(object):
         
         self.connectionState = False # indicates if ntrip connection has been established.
         
+        self.dataReceived = 0
+        
+        self.dockwidget = dockwidget
         
         self.stop_event = threading.Event()
         self.uploadPositionThread = threading.Thread(target=self.positionUploadTask)
         self.uploadPositionThread.daemon = True  # makes the thread a daemon thread
         self.uploadPositionThread.start()   #start timer thread
         
-        
-        
-        
-        
-        
         self.stopNtripConnection = threading.Event()
         self.NtripConnectionThread = threading.Thread(target=self.readData)
         self.NtripConnectionThread.daemon = True  # makes the thread a daemon thread
         self.NtripConnectionThread.start()   #start timer thread
+        
+        
+        #Thread which calculates received data length per sencond
+        self.stop_countrtcmrxevent = threading.Event()   
+        self.countrtcmrxeventThread = threading.Thread(target=self.countRxData)
+        self.countrtcmrxeventThread.daemon = True 
+        self.countrtcmrxeventThread.start() 
+        
+        self.sendGGAToCaster = True
         
 
     def registerCorrectionDataEventListener(self,callback):
@@ -98,17 +106,35 @@ class NtripClient(object):
     def triggerRawDataEvents(self,data):
         for e in self.rawevents:
             e(data)
+            
+    def countReceivedData(self,data):
+        self.dataReceived += len(data)
+
+    def resetReceivedData(self):
+        self.dataReceived = 0
         
+    def countRxData(self):
+        while not self.stop_countrtcmrxevent.is_set():
+            rxDataSize = self.dataReceived
+            print(f'Received {rxDataSize} Bytes before reset.')
+            self.dockwidget.lblReceivedRTCMData.setText(f'{rxDataSize} bytes/s')
+            self.resetReceivedData()
+            time.sleep(1) 
     
     def positionUploadTask(self):
         while not self.stop_event.is_set():
-            if self.connectionState:
+            if self.connectionState and self.sendGGAToCaster:
                 self.socket.sendall(self.getGGABytes())         # Send GGS string to caster         
             time.sleep(15)   
 
     def stopThreads(self):
         self.stop_event.set()
         self.stopNtripConnection.set()
+        
+        self.dataReceived = 0;
+        self.dockwidget.lblReceivedRTCMData.setText(f'{ self.dataReceived} bytes/s')
+        self.stop_countrtcmrxevent.set()
+        
         self.triggerCorrectionDataEvents(False)
         self.connectionState = False
         self.socket.close()
@@ -282,7 +308,9 @@ class NtripClient(object):
                     try:
                         data=s.recv(self.buffer)
                         
-                        self.triggerRawDataEvents(data)
+                        self.countReceivedData(data)
+                        
+                        #self.triggerRawDataEvents(data)
                         #print(data)
 
                         for stream in self.serialStreams:

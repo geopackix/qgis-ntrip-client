@@ -11,11 +11,12 @@
 import sys
 import os
 import configparser
-from typing import Optional
+import threading
+import time
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
-from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt, QTimer, QVariant
+from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt, QVariant
 from qgis.PyQt.QtGui import QIcon, QPixmap
-from qgis.PyQt.QtWidgets import QAction, QLineEdit, QVBoxLayout, QWidget
+from qgis.PyQt.QtWidgets import QAction
 
 
 # Initialize Qt resources from file resources.py
@@ -241,7 +242,13 @@ class QNTRIPClient:
             QgsProject.instance().addMapLayer(self.layer)
             
             self.serialStream.registerEventListener(self.update_gnss_position)
-            self.serialStream.registerRawEventListener(self.update_gnss_log)
+            
+            
+            
+            
+            
+            
+            #self.serialStream.registerRawEventListener(self.update_gnss_log)
             
             ntripArgs = {}
             ntripArgs['lat']= 48.6
@@ -258,6 +265,7 @@ class QNTRIPClient:
             ntripArgs['port']=int(port)
             print(f'Mountpoint:{mp}')
             ntripArgs['mountpoint']=mp
+            ntripArgs['dockwidget']=self.dockwidget
 
             if ntripArgs['mountpoint'][0:1] !="/":
                 ntripArgs['mountpoint'] = "/"+ntripArgs['mountpoint']
@@ -269,6 +277,8 @@ class QNTRIPClient:
             self.client = NtripClient(**ntripArgs)
             #self.client.registerCorrectionDataEventListener(self.updateRtcmState)
             #self.client.registerNtripLogListener(self.update_ntrip_log)
+            
+            
             self.out(f'Connect to NTRIP caster {host}.')
         except Exception as e:
             print(f"Fehler beim Starten des Ntrip Clients: {e}")    
@@ -285,6 +295,7 @@ class QNTRIPClient:
         try:
             length = len(data)
             #print(length)
+            self.dockwidget.lblReceivedRTCMData.setText(f'{str(length)} Bytes')
             #self.dockwidget.logReceiver.setText(str(length))
             #self.dockwidget.logReceiver.append(data.decode('utf-8', errors='ignore'))
         except Exception as e:
