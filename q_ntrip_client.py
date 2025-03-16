@@ -16,7 +16,7 @@ sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt, QTimer, QVariant
 from qgis.PyQt.QtGui import QIcon, QPixmap
 from qgis.PyQt.QtWidgets import QAction, QLineEdit, QVBoxLayout, QWidget
-import threading
+
 
 # Initialize Qt resources from file resources.py
 from .resources import *
@@ -24,7 +24,9 @@ from .resources import *
 from qgis.core import QgsProject, QgsPointXY, QgsMarkerSymbol, QgsFeature, QgsGeometry, QgsVectorLayer, QgsField
 
 from tools.mapTool import MapTool
-from ntripClient.ntripClient import NtripClient, NtripSerialStream
+
+from .ntripClient import NtripClient
+from .serialClient import NtripSerialStream
 
 from datetime import datetime
 
