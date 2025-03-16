@@ -88,7 +88,7 @@ class NtripClient(object):
         self.countrtcmrxeventThread.daemon = True 
         self.countrtcmrxeventThread.start() 
         
-        self.sendGGAToCaster = True
+        self.sendGGAToCaster = self.dockwidget.cbGGA.isChecked()
         
         self.logData = False
         self.dockwidget.checkBoxRecordNtrip.stateChanged.connect(self.on_cb_changed)
@@ -119,7 +119,10 @@ class NtripClient(object):
                 self.file.write(data)   
     def closeFile(self):
         if not self.file.closed:
-            self.file.close()        
+            self.file.close()    
+            
+    def updateGGAPos(self,lat,lon):
+        self.setPosition(lat, lon)   
 
 
     def registerCorrectionDataEventListener(self,callback):
@@ -156,7 +159,7 @@ class NtripClient(object):
         while not self.stop_event.is_set():
             if self.connectionState and self.sendGGAToCaster:
                 self.socket.sendall(self.getGGABytes())         # Send GGS string to caster         
-            time.sleep(15)   
+            time.sleep(5)   
 
     def stopThreads(self):
         self.stop_event.set()
@@ -227,9 +230,6 @@ class NtripClient(object):
         # Sende die Anfrage über den Socket
         return request.encode()
     
-    
-    
-
     def getGGABytes(self):
         now = datetime.datetime.utcnow()
 
@@ -263,18 +263,19 @@ class NtripClient(object):
         
         while not self.stopNtripConnection.is_set():
        # with self.socket as s:
-       
-            s = self.socket
+            try:
+                s = self.socket
             
-            if error_indicator==0:
-                sleepTime = 1
-                connectTime=datetime.datetime.now()
-                data = None
+                if error_indicator==0:
+                    sleepTime = 1
+                    connectTime=datetime.datetime.now()
+                    data = None
 
-                s.settimeout(1000)
-                print(self.getMountPointReq())
-                s.sendall(self.getMountPointReq())
-                try:
+                
+                    
+                    #s.settimeout(1000)
+
+                    s.sendall(self.getMountPointReq())
                 
                     while not found_header:
                         
@@ -330,60 +331,47 @@ class NtripClient(object):
                             print('error in header decoding.')
                             
                     data = "Initial data".encode()
-                except Exception as e:  
-                    print(e)
-                    continue
+                
                     
-                while data:
-            
-                    try:
-                        data=s.recv(self.buffer)
-                        
-                        self.countReceivedData(data)
-                        
-                        if self.logData:
-                            self.writeToFile(data)
-                        
-
-                        for stream in self.serialStreams:
-                            self.triggerCorrectionDataEvents(True)
-                            stream.writeToStream(data);
-                                
-                        if self.maxConnectTime :
-                            if datetime.datetime.now() > connectTime+EndConnect:
-                                if self.verbose:
-                                    print("Connection Time exceeded\n")
-                                
-
-                    except socket.timeout:
-                        if self.verbose:
-                            print('Connection TimedOut\n')
-                        data=False
-                    except socket.error:
-                        if self.verbose:
-                            print('Connection Error\n')
-                        data=False
-                    except Exception as e:
-                        data=False
-                        print(e)
-
+                    while data:
                 
-                s.close()
-                s=None
+                        try:
+                            data=s.recv(self.buffer)
+                            
+                            self.countReceivedData(data)
+                            
+                            if self.logData:
+                                self.writeToFile(data)
+                            
 
+                            for stream in self.serialStreams:
+                                self.triggerCorrectionDataEvents(True)
+                                stream.writeToStream(data);
+                                    
+                            if self.maxConnectTime :
+                                if datetime.datetime.now() > connectTime+EndConnect:
+                                    if self.verbose:
+                                        print("Connection Time exceeded\n")
+                                    
 
-            else:
-                s.close()
-                s=None
-                
-                print ("Connection error")
-
-                # if reconnectTry < maxReconnect :
-                #     print( "%s No Connection to NtripCaster.  Trying again in %i seconds\n" % (datetime.datetime.now(), sleepTime))
-                #     time.sleep(sleepTime)
-                #     sleepTime *= factor
-                #     if sleepTime>maxReconnectTime:
-                #         sleepTime=maxReconnectTime
-                # reconnectTry += 1
-
-
+                        except socket.timeout:
+                            if self.verbose:
+                                print('Connection TimedOut\n')
+                            data=False
+                        except socket.error:
+                            if self.verbose:
+                                print('Connection Error\n')
+                            data=False
+                        except Exception as e:
+                            data=False
+                            print(e)
+                else:
+                    s.close()
+            except socket.error as e:
+                print(f"Socket-Fehler: {e}")
+            except Exception as e:  
+                print(e)
+                continue
+            finally:
+                # Socket schließen
+                s.close()    

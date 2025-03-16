@@ -284,8 +284,13 @@ class QNTRIPClient:
             print(f"Fehler beim Starten des Ntrip Clients: {e}")    
    
     def update_gnss_position(self, data):
-        longitude = data['lon']
         latitude = data['lat']
+        longitude = data['lon']
+        
+        
+        self.client.updateGGAPos(latitude,longitude)
+        
+        
         self.set_marker(longitude, latitude, data)
         self.posIcon( data['fixtype'])
         
@@ -409,6 +414,8 @@ class QNTRIPClient:
         #layername = "gnss_points"
         layername = self.dockwidget.layerName.text() or "gnss_points"
         
+        qml_file = f'{os.path.dirname(__file__)}/gnssStyle.qml'
+        
         existing_layers = QgsProject.instance().mapLayersByName(layername)
         if existing_layers:
             print("Layer 'points' existiert bereits.")
@@ -426,6 +433,8 @@ class QNTRIPClient:
                 QgsField("Fixtype", QVariant.Int)
             ])
             layer.updateFields()
+            
+            layer.loadNamedStyle(qml_file)
             
         
             

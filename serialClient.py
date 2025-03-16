@@ -24,12 +24,14 @@ class NtripSerialStream():
 
         self.events = []
         self.rawevents = []
+        
+        self.dockwidget = dockwidget
 
-        self.sendCorrectionData = True      #indicates weather to send correction data or not
+        self.sendCorrectionData = self.dockwidget.cb_send_correction.isChecked()      #indicates weather to send correction data or not
         print('Initialized serialport ' + str(self.port) + ' with baudrate ' + str(self.baudrate))
         self.thread.start()   #start timer thread
         
-        self.dockwidget = dockwidget
+       
         
         self.logData = False
         
