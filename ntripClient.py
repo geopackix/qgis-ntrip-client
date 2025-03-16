@@ -116,7 +116,7 @@ class NtripClient(object):
     def countRxData(self):
         while not self.stop_countrtcmrxevent.is_set():
             rxDataSize = self.dataReceived
-            print(f'Received {rxDataSize} Bytes before reset.')
+            #print(f'Received {rxDataSize} bytes before reset.')
             self.dockwidget.lblReceivedRTCMData.setText(f'{rxDataSize} bytes/s')
             self.resetReceivedData()
             time.sleep(1) 

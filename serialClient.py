@@ -3,6 +3,7 @@
 import threading
 import serial
 import os
+import time
 from . import pynmea2
 from qgis.PyQt.QtGui import QIcon, QPixmap
 
@@ -15,6 +16,7 @@ class NtripSerialStream():
         self.serial = serial.Serial(port, baudrate, timeout=1)
         self.buffer = bytearray()
 
+        self.dataReceived = 0
         
         self.stopSerial = threading.Event()
         self.thread = threading.Thread(target=self.runProcess)
@@ -29,9 +31,45 @@ class NtripSerialStream():
         
         self.dockwidget = dockwidget
         
+        self.logData = False
+        
+        #Thread which calculates received data length per sencond
+        self.stop_countSerialRxEvent = threading.Event()   
+        self.countSerialRxEventThread = threading.Thread(target=self.countRxData)
+        self.countSerialRxEventThread.daemon = True 
+        self.countSerialRxEventThread.start() 
+        
+        self.dockwidget.cb_send_correction.stateChanged.connect(self.switchSendCorrectionData)
+        self.dockwidget.fileSelectorReceiverRecord.fileChanged.connect(self.on_path_changed)
+        self.dockwidget.checkBoxRecordReceiver.stateChanged.connect(self.on_cb_changed)
+    
+    def on_path_changed(self):
+        path = self.dockwidget.fileSelectorReceiverRecord.filePath()   
+        print(f'Log file path has changed to {path}')
+        if path:
+            self.openFile(path)
+        else:
+            self.closeFile()
+            
+    def on_cb_changed(self):
+        cb_val =  self.dockwidget.checkBoxRecordReceiver.isChecked()
+        self.logData = cb_val
         
         
+    def countReceivedData(self,data):
+        self.dataReceived += len(data)
 
+    def resetReceivedData(self):
+        self.dataReceived = 0
+        
+    def countRxData(self):
+        while not self.stop_countSerialRxEvent.is_set():
+            rxDataSize = self.dataReceived
+            print(f'SERIAL - Received {rxDataSize} Bytes before reset.')
+            self.dockwidget.lblReceivedSerialData.setText(f'{rxDataSize} bytes/s')
+            self.resetReceivedData()
+            time.sleep(1) 
+        
     def runProcess(self):
         while not self.stopSerial.is_set():
             print('run serial read process')
@@ -40,31 +78,50 @@ class NtripSerialStream():
 
     def stopSerialStream(self):
         print('stop Serialstream')
+        
+        self.dataReceived = 0;
+        self.dockwidget.lblReceivedSerialData.setText(f'{self.dataReceived} bytes/s')
+        self.stop_countSerialRxEvent.set()
+    
+        
         self.stopSerial.set()
         self.serial.close()
     
     
     def switchSendCorrectionData(self):
-        self.sendCorrectionData = not self.sendCorrectionData;
-    
-    def writeToStream(self, txdata):
-        
+
         self.sendCorrectionData = self.dockwidget.cb_send_correction.isChecked()
-        
         #icon
         rtcm_icon_on = f'{os.path.dirname(__file__)}/rtcmOn.png'
         rtcm_icon_off = f'{os.path.dirname(__file__)}/rtcmOff.png'
-    
+        
         if self.sendCorrectionData:
             self.dockwidget.receiveCorrectionsIcon.setPixmap(QPixmap(rtcm_icon_on))
-            print('write date to stream ' + str(self.port))
-            self.serial.write(txdata)
         else:
             self.dockwidget.receiveCorrectionsIcon.setPixmap(QPixmap(rtcm_icon_off)) 
-    
+        
+        
         
     
+    def writeToStream(self, txdata):
+        if self.sendCorrectionData:
+            self.serial.write(txdata)
+            
+    def openFile(self, file):
+        self.file = open(file, 'ab')
         
+    def writeToFile(self, data):
+        if self.logData:
+            if not self.file.closed:
+                self.file.write(data)   
+    def closeFile(self):
+        if not self.file.closed:
+            self.file.close()
+    
+    def switchLogToFile(self,bol):
+        
+        self.logData = bol
+       
         
     def __read_from_serial(self):
 
@@ -75,12 +132,18 @@ class NtripSerialStream():
             try:
                 data = self.serial.read(128)
                 
+                self.writeToFile(data)
+                
                 # Füge die gelesenen Daten zum Puffer hinzu
                 buffer += data
+                
+                self.countReceivedData(data)
 
                 while b'\n' in buffer:
                     # Trenne den Puffer an der ersten neuen Zeile
                     line, buffer = buffer.split(b'\n', 1)
+                    
+                    
                     
                     self.triggerRawEvents(line.rstrip())
                     

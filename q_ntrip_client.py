@@ -427,12 +427,7 @@ class QNTRIPClient:
             ])
             layer.updateFields()
             
-            
-            layer.updateFields()
         
-            # Hinzufügen von Feldern zum Layer
-            #provider.addAttributes([QgsField("name", QVariant.String)])
-            layer.updateFields()
             
             # Hinzufügen des Layers zum Projekt
             QgsProject.instance().addMapLayer(layer)
@@ -461,9 +456,7 @@ class QNTRIPClient:
         if(isChecked):
             print(file) 
         
-        
-
-
+                
     def run(self):
         """Run method that loads and starts the plugin"""
         try:
@@ -522,8 +515,10 @@ class QNTRIPClient:
                 self.dockwidget.connectBtn.clicked.connect(self.startNtripClient)
                 self.dockwidget.disconnectBtn.clicked.connect(self.stopNtripClient)
                 
-                self.dockwidget.checkBoxRecordReceiver.stateChanged.connect(self.on_checkbox_record_Receiver)
-                self.dockwidget.checkBoxRecordNtrip.stateChanged.connect(self.on_checkbox_record_Ntrip)
+                #self.dockwidget.checkBoxRecordReceiver.stateChanged.connect(self.on_checkbox_record_Receiver)
+                #self.dockwidget.checkBoxRecordNtrip.stateChanged.connect(self.on_checkbox_record_Ntrip)
+                
+                
                 
                 self.dockwidget.show()
                 
