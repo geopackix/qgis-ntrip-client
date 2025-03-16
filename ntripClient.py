@@ -190,13 +190,8 @@ class NtripClient(object):
             xsum_calc = xsum_calc ^ ord(char)
         return "%02X" % xsum_calc
 
-    
-        
 
     def readData(self):
-        reconnectTry=1
-        sleepTime=1
-        reconnectTime=0
         
         print('Connect to NTRIP caster.')
         

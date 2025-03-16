@@ -233,7 +233,7 @@ class QNTRIPClient:
         
         try:
             host,port,mp,user,pw,serial,baud = self.getValuesFromUi()
-            self.serialStream = NtripSerialStream(serial,int(baud))
+            self.serialStream = NtripSerialStream(serial,int(baud), self.dockwidget)
             self.out(f'Connect serial stream.')
             
             ## Temp layer for gnss points
@@ -241,7 +241,7 @@ class QNTRIPClient:
             QgsProject.instance().addMapLayer(self.layer)
             
             self.serialStream.registerEventListener(self.update_gnss_position)
-            #self.serialStream.registerRawEventListener(self.update_gnss_log)
+            self.serialStream.registerRawEventListener(self.update_gnss_log)
             
             ntripArgs = {}
             ntripArgs['lat']= 48.6
@@ -267,7 +267,7 @@ class QNTRIPClient:
             ntripArgs['streams'] = [self.serialStream]
         
             self.client = NtripClient(**ntripArgs)
-            self.client.registerCorrectionDataEventListener(self.updateRtcmState)
+            #self.client.registerCorrectionDataEventListener(self.updateRtcmState)
             #self.client.registerNtripLogListener(self.update_ntrip_log)
             self.out(f'Connect to NTRIP caster {host}.')
         except Exception as e:
@@ -276,9 +276,7 @@ class QNTRIPClient:
     def update_gnss_position(self, data):
         longitude = data['lon']
         latitude = data['lat']
-        
         self.set_marker(longitude, latitude, data)
-        
         self.posIcon( data['fixtype'])
         
         
@@ -286,7 +284,7 @@ class QNTRIPClient:
         #append data to receiver log 
         try:
             length = len(data)
-            print(length)
+            #print(length)
             #self.dockwidget.logReceiver.setText(str(length))
             #self.dockwidget.logReceiver.append(data.decode('utf-8', errors='ignore'))
         except Exception as e:
@@ -333,23 +331,8 @@ class QNTRIPClient:
         else:
             self.dockwidget.fixtypeIcon.setPixmap(QPixmap(ft_icon_no)) 
     
-    def updateRtcmState(self, rtcmstatus):
-        print('update rtcm state')
-        self.rtcmIcon(rtcmstatus)
     
-    def rtcmIcon(self, receiveCorrections):
-        
-        
-        
-        #icon
-        rtcm_icon_on = f'{self.plugin_dir}/rtcmOn.png'
-        rtcm_icon_off = f'{self.plugin_dir}/rtcmOff.png'
-    
-        
-        if(receiveCorrections == True):
-            self.dockwidget.receiveCorrectionsIcon.setPixmap(QPixmap(rtcm_icon_on))
-        else:
-            self.dockwidget.receiveCorrectionsIcon.setPixmap(QPixmap(rtcm_icon_off)) 
+
         
      
     def set_marker(self, x, y, data):

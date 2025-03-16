@@ -74,6 +74,13 @@
        </spacer>
       </item>
       <item>
+       <widget class="QCheckBox" name="cb_send_correction">
+        <property name="text">
+         <string>Send Corrections</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QLabel" name="receiveCorrectionsIcon">
         <property name="maximumSize">
          <size>
@@ -125,7 +132,7 @@
     <item row="3" column="0">
      <widget class="QTabWidget" name="tabWidget">
       <property name="currentIndex">
-       <number>1</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="ConnectionTab">
        <attribute name="title">

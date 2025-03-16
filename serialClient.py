@@ -2,14 +2,19 @@
 
 import threading
 import serial
+import os
 from . import pynmea2
+from qgis.PyQt.QtGui import QIcon, QPixmap
+
+
 
 class NtripSerialStream():
-    def __init__(self, port, baudrate):
+    def __init__(self, port, baudrate, dockwidget):
         self.port = port
         self.baudrate = baudrate
         self.serial = serial.Serial(port, baudrate, timeout=1)
         self.buffer = bytearray()
+
         
         self.stopSerial = threading.Event()
         self.thread = threading.Thread(target=self.runProcess)
@@ -21,6 +26,9 @@ class NtripSerialStream():
         self.sendCorrectionData = True      #indicates weather to send correction data or not
         print('Initialized serialport ' + str(self.port) + ' with baudrate ' + str(self.baudrate))
         self.thread.start()   #start timer thread
+        
+        self.dockwidget = dockwidget
+        
         
         
 
@@ -34,12 +42,30 @@ class NtripSerialStream():
         print('stop Serialstream')
         self.stopSerial.set()
         self.serial.close()
-        
+    
+    
+    def switchSendCorrectionData(self):
+        self.sendCorrectionData = not self.sendCorrectionData;
     
     def writeToStream(self, txdata):
+        
+        self.sendCorrectionData = self.dockwidget.cb_send_correction.isChecked()
+        print(self.sendCorrectionData)
+        
+        #icon
+        rtcm_icon_on = f'{os.path.dirname(__file__)}/rtcmOn.png'
+        rtcm_icon_off = f'{os.path.dirname(__file__)}/rtcmOff.png'
+    
+        
         if self.sendCorrectionData:
+            self.dockwidget.receiveCorrectionsIcon.setPixmap(QPixmap(rtcm_icon_on))
             print('write date to stream ' + str(self.port))
             self.serial.write(txdata)
+        else:
+            self.dockwidget.receiveCorrectionsIcon.setPixmap(QPixmap(rtcm_icon_off)) 
+    
+        
+    
         
         
     def __read_from_serial(self):
