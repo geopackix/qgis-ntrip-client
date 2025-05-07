@@ -249,9 +249,9 @@ class QNTRIPClient:
             #self.serialStream.registerRawEventListener(self.update_gnss_log)
             
             ntripArgs = {}
-            ntripArgs['lat']= 48.6
-            ntripArgs['lon']= 9.7
-            ntripArgs['height']= 400
+            ntripArgs['lat']= 0
+            ntripArgs['lon']= 0
+            ntripArgs['height']= 0
             # import ssl
             # ntripArgs['ssl']=True
 
@@ -282,14 +282,15 @@ class QNTRIPClient:
             print(f"Fehler beim Starten des Ntrip Clients: {e}")    
    
     def update_gnss_position(self, data):
-        latitude = data['lat']
+        
+
         longitude = data['lon']
-        
-        
-        self.client.updateGGAPos(latitude,longitude)
-        
-        
+        latitude = data['lat']
+        height = data['alt']
+            
         self.set_marker(longitude, latitude, data)
+        if self.client:
+            self.client.updateLatLon(longitude, latitude, height)
         self.posIcon( data['fixtype'])
         
         

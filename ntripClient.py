@@ -30,9 +30,9 @@ class NtripClient(object):
                  caster="",
                  mountpoint="",
                  host=False,
-                 lat=48.85,
-                 lon=9.33,   
-                 height=330,
+                 lat=0,
+                 lon=0,   
+                 height=0,
                  ssl=False,
                  verbose=True,
                  V2=False,
@@ -48,12 +48,19 @@ class NtripClient(object):
         self.port=port
         self.caster=caster
         self.mountpoint=mountpoint
-        self.setPosition(lat, lon)
+        self.setPosition(lat, lon, height)
         self.height=height
         self.verbose=verbose
         self.ssl=ssl
         self.host=host
         self.V2=False
+
+
+        if dockwidget.selectNtripVersion.currentText() == '2':
+            print('using NTRIP V2')
+            self.V2 = True
+
+
         self.headerFile=headerFile
         self.headerOutput=headerOutput
         self.maxConnectTime=maxConnectTime
@@ -121,8 +128,10 @@ class NtripClient(object):
         if not self.file.closed:
             self.file.close()    
             
-    def updateGGAPos(self,lat,lon):
-        self.setPosition(lat, lon)   
+     
+    
+    def updateLatLon(self,longitude, latitude, height):
+        self.setPosition(latitude, longitude, height)
 
 
     def registerCorrectionDataEventListener(self,callback):
@@ -157,6 +166,7 @@ class NtripClient(object):
     
     def positionUploadTask(self):
         while not self.stop_event.is_set():
+            self.sendGGAToCaster = self.dockwidget.cbGGA.isChecked()            #check if upload checkbox is still set
             if self.connectionState and self.sendGGAToCaster:
                 self.socket.sendall(self.getGGABytes())         # Send GGS string to caster         
             time.sleep(5)   
@@ -174,7 +184,14 @@ class NtripClient(object):
         self.socket.close()
         print('NTRIP client stopped.')
 
-    def setPosition(self, lat, lon):
+    def setPosition(self, lat, lon, height):
+
+        #cut decimal places
+        lat = float(f"{lat:.3f}")
+        lon = float(f"{lon:.3f}")
+
+        print(f"Set GGA of ntrip client to lon: {lon} and lat: {lat}")
+
         self.flagN="N"
         self.flagE="E"
         if lon>180:
@@ -195,6 +212,7 @@ class NtripClient(object):
         self.latDeg=int(lat)
         self.lonMin=(lon-self.lonDeg)*60
         self.latMin=(lat-self.latDeg)*60
+        self.height = height
 
     def getMountPointBytes(self):
         
@@ -238,7 +256,7 @@ class NtripClient(object):
             (now.hour,now.minute,now.second,self.latDeg,self.latMin,self.flagN,self.lonDeg,self.lonMin,self.flagE)
         checksum = self.calcultateCheckSum(ggaString)
         if self.verbose:
-            print  ("$%s*%s\r\n" % (ggaString, checksum))
+            print  ("GGA Upload $%s*%s\r\n" % (ggaString, checksum))
         return bytes("$%s*%s\r\n" % (ggaString, checksum),'ascii')
 
     def calcultateCheckSum(self, stringToCheck):
@@ -306,7 +324,7 @@ class NtripClient(object):
                                     self.headerFile.write(line+"\n")
 
                             for line in header_lines:
-                                print(line)
+                                
                                 if line.find("SOURCETABLE")>=0:
                                     print("Mount point does not exist")
                                     #sys.exit(1)
@@ -319,17 +337,23 @@ class NtripClient(object):
                                 elif line.find("ICY 200 OK")>=0:
                                     print("ICY 200 OK")
                                     #Request was valid
-                                    s.sendall(self.getGGABytes())
+                                    if self.sendGGAToCaster:
+                                        s.sendall(self.getGGABytes())
+                                    
                                     self.connectionState = True
                                     data = "Initial data".encode()
                                 elif line.find("HTTP/1.0 200 OK")>=0:
                                     #Request was valid
-                                    s.sendall(self.getGGABytes())
+                                    if self.sendGGAToCaster:
+                                        s.sendall(self.getGGABytes())
+                                    
                                     self.connectionState = True
                                     data = "Initial data".encode()
                                 elif line.find("HTTP/1.1 200 OK")>=0:
                                     #Request was valid
-                                    s.sendall(self.getGGABytes())
+                                    if self.sendGGAToCaster:
+                                        s.sendall(self.getGGABytes())
+                                    
                                     self.connectionState = True
                                     data = "Initial data".encode()
                                 
