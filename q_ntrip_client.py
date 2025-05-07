@@ -232,6 +232,8 @@ class QNTRIPClient:
 
     def startNtripClient(self):
         
+        print('Start Ntrip client')
+
         try:
             host,port,mp,user,pw,serial,baud = self.getValuesFromUi()
             self.serialStream = NtripSerialStream(serial,int(baud), self.dockwidget)
@@ -242,10 +244,6 @@ class QNTRIPClient:
             QgsProject.instance().addMapLayer(self.layer)
             
             self.serialStream.registerEventListener(self.update_gnss_position)
-            
-            
-            
-            
             
             
             #self.serialStream.registerRawEventListener(self.update_gnss_log)

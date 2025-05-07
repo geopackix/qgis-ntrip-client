@@ -34,7 +34,7 @@ class NtripClient(object):
                  lon=9.33,   
                  height=330,
                  ssl=False,
-                 verbose=False,
+                 verbose=True,
                  V2=False,
                  headerFile=sys.stderr,
                  headerOutput=False,
@@ -260,6 +260,12 @@ class NtripClient(object):
 
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         error_indicator = self.socket.connect_ex((self.caster, self.port))
+
+        print(f"Error Indicator {error_indicator}")
+
+        if error_indicator == 10061:
+            print("Caster nicht erreichbar - Fehler 10061")
+
         
         while not self.stopNtripConnection.is_set():
        # with self.socket as s:
@@ -358,10 +364,12 @@ class NtripClient(object):
                             if self.verbose:
                                 print('Connection TimedOut\n')
                             data=False
+                            time.sleep(5) 
                         except socket.error:
                             if self.verbose:
                                 print('Connection Error\n')
                             data=False
+                            time.sleep(5) 
                         except Exception as e:
                             data=False
                             print(e)
