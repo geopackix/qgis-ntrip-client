@@ -3,258 +3,672 @@
  <class>QNTRIPClientDockWidgetBase</class>
  <widget class="QDockWidget" name="QNTRIPClientDockWidgetBase">
   <property name="geometry">
-   <rect>
-    <x>0</x>
-    <y>0</y>
-    <width>1152</width>
-    <height>385</height>
-   </rect>
+   <rect><x>0</x><y>0</y><width>440</width><height>540</height></rect>
+  </property>
+  <property name="minimumSize">
+   <size><width>380</width><height>320</height></size>
   </property>
   <property name="windowTitle">
-   <string>QNTRIPClient</string>
+   <string>GNSS NTRIP Client</string>
   </property>
   <widget class="QWidget" name="dockWidgetContents">
-   <layout class="QGridLayout" name="gridLayout">
-    <item row="5" column="0">
-     <layout class="QHBoxLayout" name="horizontalLayout_8">
+   <layout class="QVBoxLayout" name="mainLayout">
+    <property name="spacing"><number>3</number></property>
+    <property name="leftMargin"><number>4</number></property>
+    <property name="topMargin"><number>4</number></property>
+    <property name="rightMargin"><number>4</number></property>
+    <property name="bottomMargin"><number>4</number></property>
+
+    <!-- === Status row 1: RTK + DOP + Data rates === -->
+    <item>
+     <layout class="QHBoxLayout" name="statusRow1">
+      <property name="spacing"><number>6</number></property>
       <item>
-       <widget class="QLabel" name="label_9">
-        <property name="text">
-         <string>Layername</string>
+       <widget class="QLabel" name="lblRtkStatus">
+        <property name="text"><string>No Fix</string></property>
+        <property name="styleSheet">
+         <string>font-weight:bold;padding:2px 6px;background:#555;color:white;border-radius:3px;</string>
         </property>
        </widget>
       </item>
       <item>
-       <widget class="QLineEdit" name="layerName">
-        <property name="text">
-         <string>position</string>
-        </property>
+       <widget class="QLabel" name="lblHdop">
+        <property name="text"><string>HDOP:--</string></property>
+        <property name="styleSheet"><string>font-size:10px;</string></property>
        </widget>
       </item>
-     </layout>
-    </item>
-    <item row="6" column="0">
-     <layout class="QHBoxLayout" name="horizontalLayout_5">
       <item>
-       <layout class="QGridLayout" name="gridLayout_2">
-        <item row="0" column="1">
-         <widget class="QPushButton" name="disconnectBtn">
-          <property name="text">
-           <string>Disconnect</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="0">
-         <widget class="QPushButton" name="connectBtn">
-          <property name="text">
-           <string>Connect</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="2">
-         <widget class="QPushButton" name="infoBtn">
-          <property name="text">
-           <string>Info</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
+       <widget class="QLabel" name="lblVdop">
+        <property name="text"><string>VDOP:--</string></property>
+        <property name="styleSheet"><string>font-size:10px;</string></property>
+       </widget>
       </item>
       <item>
-       <spacer name="horizontalSpacer">
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>40</width>
-          <height>20</height>
-         </size>
-        </property>
+       <widget class="QLabel" name="lblPdop">
+        <property name="text"><string>PDOP:--</string></property>
+        <property name="styleSheet"><string>font-size:10px;</string></property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="lblSatCount">
+        <property name="text"><string>Sats:0</string></property>
+        <property name="styleSheet"><string>font-size:10px;</string></property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="spacer1">
+        <property name="orientation"><enum>Qt::Horizontal</enum></property>
        </spacer>
       </item>
       <item>
-       <widget class="QCheckBox" name="cb_send_correction">
-        <property name="text">
-         <string>Send Corrections</string>
-        </property>
-        <property name="checked">
-         <bool>true</bool>
-        </property>
+       <widget class="QLabel" name="lblReceivedRTCMData">
+        <property name="text"><string>RTCM:0B/s</string></property>
+        <property name="styleSheet"><string>font-size:10px;</string></property>
        </widget>
       </item>
       <item>
-       <widget class="QLabel" name="receiveCorrectionsIcon">
-        <property name="maximumSize">
-         <size>
-          <width>96</width>
-          <height>48</height>
-         </size>
-        </property>
-        <property name="text">
-         <string/>
-        </property>
-        <property name="pixmap">
-         <pixmap>rtcmOff.png</pixmap>
-        </property>
-        <property name="scaledContents">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QLabel" name="fixtypeIcon">
-        <property name="enabled">
-         <bool>true</bool>
-        </property>
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="maximumSize">
-         <size>
-          <width>48</width>
-          <height>48</height>
-         </size>
-        </property>
-        <property name="text">
-         <string/>
-        </property>
-        <property name="pixmap">
-         <pixmap>noPos.png</pixmap>
-        </property>
-        <property name="scaledContents">
-         <bool>true</bool>
-        </property>
+       <widget class="QLabel" name="lblReceivedSerialData">
+        <property name="text"><string>RX:0B/s</string></property>
+        <property name="styleSheet"><string>font-size:10px;</string></property>
        </widget>
       </item>
      </layout>
     </item>
-    <item row="3" column="0">
+
+    <!-- === Status row 2: Live position === -->
+    <item>
+     <layout class="QHBoxLayout" name="statusRow2">
+      <property name="spacing"><number>6</number></property>
+      <item>
+       <widget class="QLabel" name="lblLiveLat">
+        <property name="text"><string>Lat: --</string></property>
+        <property name="styleSheet"><string>font-family:monospace;font-size:10px;</string></property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="lblLiveLon">
+        <property name="text"><string>Lon: --</string></property>
+        <property name="styleSheet"><string>font-family:monospace;font-size:10px;</string></property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="lblLiveH">
+        <property name="text"><string>H: --</string></property>
+        <property name="styleSheet"><string>font-family:monospace;font-size:10px;</string></property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="lblLiveAcc">
+        <property name="text"><string>Acc: --</string></property>
+        <property name="styleSheet"><string>font-size:10px;color:#888;</string></property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="spacer2">
+        <property name="orientation"><enum>Qt::Horizontal</enum></property>
+       </spacer>
+      </item>
+     </layout>
+    </item>
+
+    <!-- === Main Tabs === -->
+    <item>
      <widget class="QTabWidget" name="tabWidget">
-      <property name="currentIndex">
-       <number>0</number>
-      </property>
-      <widget class="QWidget" name="ConnectionTab">
-       <attribute name="title">
-        <string>Connection</string>
-       </attribute>
-       <layout class="QVBoxLayout" name="verticalLayout">
+      <property name="currentIndex"><number>0</number></property>
+
+      <!-- *** Connection Tab *** -->
+      <widget class="QWidget" name="tabConnection">
+       <attribute name="title"><string>Verbindung</string></attribute>
+       <layout class="QVBoxLayout" name="connLayout">
+        <property name="spacing"><number>4</number></property>
+
+        <!-- NTRIP Caster group -->
         <item>
-         <widget class="QGroupBox" name="GroupBoxConnect">
-          <property name="accessibleName">
-           <string/>
-          </property>
-          <property name="title">
-           <string>Ntrip</string>
-          </property>
-          <layout class="QGridLayout" name="gridLayout_6">
-           <item row="3" column="0">
-            <layout class="QHBoxLayout" name="horizontalLayout_2">
+         <widget class="QGroupBox" name="grpCaster">
+          <property name="title"><string>NTRIP Caster</string></property>
+          <layout class="QVBoxLayout" name="casterLayout">
+           <property name="spacing"><number>4</number></property>
+           <!-- Caster selection row -->
+           <item>
+            <layout class="QHBoxLayout" name="casterSelectRow">
              <item>
-              <widget class="QCheckBox" name="cbGGA">
-               <property name="text">
-                <string>Send GGA</string>
+              <widget class="QComboBox" name="comboCaster">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                 <horstretch>1</horstretch><verstretch>0</verstretch>
+                </sizepolicy>
                </property>
               </widget>
              </item>
              <item>
-              <widget class="QLabel" name="label_4">
-               <property name="text">
-                <string>NTRIP Version</string>
-               </property>
+              <widget class="QPushButton" name="btnAddCaster">
+               <property name="text"><string>+</string></property>
+               <property name="maximumSize"><size><width>26</width><height>16777215</height></size></property>
               </widget>
              </item>
              <item>
+              <widget class="QPushButton" name="btnEditCaster">
+               <property name="text"><string>&#x270e;</string></property>
+               <property name="maximumSize"><size><width>26</width><height>16777215</height></size></property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="btnDeleteCaster">
+               <property name="text"><string>-</string></property>
+               <property name="maximumSize"><size><width>26</width><height>16777215</height></size></property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <!-- Caster details grid -->
+           <item>
+            <layout class="QGridLayout" name="casterGrid">
+             <item row="0" column="0">
+              <widget class="QLabel" name="lblHost"><property name="text"><string>Host</string></property></widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="QLineEdit" name="inputHost">
+               <property name="placeholderText"><string>z.B. www.euref-ip.net</string></property>
+              </widget>
+             </item>
+             <item row="0" column="2">
+              <widget class="QLabel" name="lblPort"><property name="text"><string>Port</string></property></widget>
+             </item>
+             <item row="0" column="3">
+              <widget class="QLineEdit" name="inputPort">
+               <property name="text"><string>2101</string></property>
+               <property name="maximumSize"><size><width>55</width><height>16777215</height></size></property>
+              </widget>
+             </item>
+             <item row="1" column="0">
+              <widget class="QLabel" name="lblMountpoint"><property name="text"><string>Mountpoint</string></property></widget>
+             </item>
+             <item row="1" column="1" colspan="3">
+              <layout class="QHBoxLayout" name="mpRow">
+               <property name="spacing"><number>3</number></property>
+               <item>
+                <widget class="QComboBox" name="inputMp">
+                 <property name="editable"><bool>true</bool></property>
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                   <horstretch>1</horstretch><verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="toolTip"><string>Mountpoint eingeben oder aus Liste wählen</string></property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="btnFetchMountpoints">
+                 <property name="text"><string>Laden</string></property>
+                 <property name="maximumSize"><size><width>55</width><height>16777215</height></size></property>
+                 <property name="toolTip"><string>Verfügbare Mountpoints vom Caster abrufen</string></property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+             <item row="2" column="0">
+              <widget class="QLabel" name="lblUser"><property name="text"><string>Benutzer</string></property></widget>
+             </item>
+             <item row="2" column="1">
+              <widget class="QLineEdit" name="inputUser"/>
+             </item>
+             <item row="2" column="2">
+              <widget class="QLabel" name="lblPassword"><property name="text"><string>Passwort</string></property></widget>
+             </item>
+             <item row="2" column="3">
+              <widget class="QLineEdit" name="inputPassword">
+               <property name="echoMode"><enum>QLineEdit::Password</enum></property>
+              </widget>
+             </item>
+             <item row="3" column="0">
+              <widget class="QLabel" name="lblNtripVer"><property name="text"><string>Version</string></property></widget>
+             </item>
+             <item row="3" column="1">
               <widget class="QComboBox" name="selectNtripVersion">
-               <item>
-                <property name="text">
-                 <string>1</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>2</string>
-                </property>
-               </item>
+               <item><property name="text"><string>1</string></property></item>
+               <item><property name="text"><string>2</string></property></item>
+              </widget>
+             </item>
+             <item row="3" column="2" colspan="2">
+              <widget class="QCheckBox" name="cbGGA">
+               <property name="text"><string>GGA senden</string></property>
+               <property name="checked"><bool>true</bool></property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <!-- NTRIP connect buttons -->
+           <item>
+            <layout class="QHBoxLayout" name="ntripBtnRow">
+             <item>
+              <widget class="QPushButton" name="btnConnectNtrip">
+               <property name="text"><string>NTRIP verbinden</string></property>
+               <property name="styleSheet"><string>font-weight:bold;</string></property>
               </widget>
              </item>
              <item>
-              <spacer name="horizontalSpacer_3">
-               <property name="orientation">
-                <enum>Qt::Horizontal</enum>
-               </property>
-               <property name="sizeHint" stdset="0">
-                <size>
-                 <width>40</width>
-                 <height>20</height>
-                </size>
-               </property>
+              <widget class="QPushButton" name="btnDisconnectNtrip">
+               <property name="text"><string>Trennen</string></property>
+               <property name="enabled"><bool>false</bool></property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="ntripBtnSpacer">
+               <property name="orientation"><enum>Qt::Horizontal</enum></property>
+              </spacer>
+             </item>
+             <item>
+              <widget class="QLabel" name="lblNtripConnState">
+               <property name="text"><string>● getrennt</string></property>
+               <property name="styleSheet"><string>font-size:10px;color:#888;</string></property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <!-- NTRIP status message -->
+           <item>
+            <widget class="QLabel" name="lblNtripStatus">
+             <property name="text"><string>Bereit</string></property>
+             <property name="styleSheet"><string>font-size:9px;color:#666;padding:3px;background:#f0f0f0;border-radius:2px;</string></property>
+             <property name="wordWrap"><bool>true</bool></property>
+             <property name="minimumHeight"><number>20</number></property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+
+        <!-- Receiver group -->
+        <item>
+         <widget class="QGroupBox" name="grpReceiver">
+          <property name="title"><string>GNSS Receiver</string></property>
+          <layout class="QGridLayout" name="receiverGrid">
+           <property name="spacing"><number>4</number></property>
+           <item row="0" column="0">
+            <widget class="QLabel" name="lblSerialPort"><property name="text"><string>Port</string></property></widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QComboBox" name="inputSPort">
+             <property name="editable"><bool>true</bool></property>
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+               <horstretch>1</horstretch><verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="2">
+            <widget class="QPushButton" name="btnRefreshPorts">
+             <property name="text"><string>&#x21ba;</string></property>
+             <property name="maximumSize"><size><width>26</width><height>16777215</height></size></property>
+             <property name="toolTip"><string>COM-Ports aktualisieren</string></property>
+            </widget>
+           </item>
+           <item row="0" column="3">
+            <widget class="QLabel" name="lblBaud"><property name="text"><string>Baud</string></property></widget>
+           </item>
+           <item row="0" column="4">
+            <widget class="QComboBox" name="inputSBaud">
+             <property name="editable"><bool>true</bool></property>
+             <item><property name="text"><string>9600</string></property></item>
+             <item><property name="text"><string>19200</string></property></item>
+             <item><property name="text"><string>38400</string></property></item>
+             <item><property name="text"><string>57600</string></property></item>
+             <item><property name="text"><string>115200</string></property></item>
+             <item><property name="text"><string>230400</string></property></item>
+             <item><property name="text"><string>460800</string></property></item>
+             <item><property name="text"><string>921600</string></property></item>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="lblReceiverType"><property name="text"><string>Typ</string></property></widget>
+           </item>
+           <item row="1" column="1" colspan="2">
+            <widget class="QComboBox" name="comboReceiverType">
+             <item><property name="text"><string>Unicore UM980</string></property></item>
+             <item><property name="text"><string>u-blox</string></property></item>
+             <item><property name="text"><string>Septentrio</string></property></item>
+             <item><property name="text"><string>Generisch (NMEA)</string></property></item>
+            </widget>
+           </item>
+           <item row="1" column="3">
+            <widget class="QLabel" name="lblAntennaHeight"><property name="text"><string>Ant.H[m]</string></property></widget>
+           </item>
+           <item row="1" column="4">
+            <widget class="QDoubleSpinBox" name="spinAntennaHeight">
+             <property name="decimals"><number>3</number></property>
+             <property name="minimum"><double>0.0</double></property>
+             <property name="maximum"><double>10.0</double></property>
+             <property name="singleStep"><double>0.001</double></property>
+            </widget>
+           </item>
+           <item row="2" column="0" colspan="3">
+            <widget class="QCheckBox" name="cbSendCorrection">
+             <property name="text"><string>Korrekturdaten senden</string></property>
+             <property name="checked"><bool>true</bool></property>
+            </widget>
+           </item>
+           <item row="2" column="3" colspan="2">
+            <widget class="QPushButton" name="btnReceiverConfig">
+             <property name="text"><string>Konfigurieren</string></property>
+            </widget>
+           </item>
+           <!-- Receiver connect buttons -->
+           <item row="3" column="0" colspan="5">
+            <layout class="QHBoxLayout" name="receiverBtnRow">
+             <item>
+              <widget class="QPushButton" name="btnConnectReceiver">
+               <property name="text"><string>Receiver verbinden</string></property>
+               <property name="styleSheet"><string>font-weight:bold;</string></property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="btnDisconnectReceiver">
+               <property name="text"><string>Trennen</string></property>
+               <property name="enabled"><bool>false</bool></property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="recvBtnSpacer">
+               <property name="orientation"><enum>Qt::Horizontal</enum></property>
+              </spacer>
+             </item>
+             <item>
+              <widget class="QLabel" name="lblReceiverConnState">
+               <property name="text"><string>&#x25cf; getrennt</string></property>
+               <property name="styleSheet"><string>font-size:10px;color:#888;</string></property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </item>
+
+        <!-- Height Transformation -->
+        <item>
+         <widget class="QGroupBox" name="grpHeightTransform">
+          <property name="title"><string>Hoehentransformation</string></property>
+          <property name="checkable"><bool>true</bool></property>
+          <property name="checked"><bool>false</bool></property>
+          <layout class="QHBoxLayout" name="heightTransLayout">
+           <property name="spacing"><number>4</number></property>
+           <item>
+            <widget class="QLabel" name="lblGeoidModel"><property name="text"><string>Geoid</string></property></widget>
+           </item>
+           <item>
+            <widget class="QComboBox" name="comboGeoidModel">
+             <item><property name="text"><string>GCG2016</string></property></item>
+             <item><property name="text"><string>EGM2008</string></property></item>
+             <item><property name="text"><string>EGM96</string></property></item>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="lblGeoidSep"><property name="text"><string>Undulation[m]</string></property></widget>
+           </item>
+           <item>
+            <widget class="QDoubleSpinBox" name="spinGeoidSeparation">
+             <property name="decimals"><number>3</number></property>
+             <property name="minimum"><double>-150.0</double></property>
+             <property name="maximum"><double>150.0</double></property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+
+        <item>
+         <spacer name="connSpacer">
+          <property name="orientation"><enum>Qt::Vertical</enum></property>
+         </spacer>
+        </item>
+       </layout>
+      </widget>
+
+      <!-- *** Measurement Tab *** -->
+      <widget class="QWidget" name="tabMeasurement">
+       <attribute name="title"><string>Messung</string></attribute>
+       <layout class="QVBoxLayout" name="measLayout">
+        <property name="spacing"><number>4</number></property>
+
+        <!-- Point measurement -->
+        <item>
+         <widget class="QGroupBox" name="grpPointMeasurement">
+          <property name="title"><string>Punktmessung</string></property>
+          <layout class="QVBoxLayout" name="pointMeasLayout">
+           <property name="spacing"><number>4</number></property>
+           <item>
+            <layout class="QHBoxLayout" name="avgRow">
+             <item>
+              <widget class="QCheckBox" name="cbAveraging">
+               <property name="text"><string>Mittelung</string></property>
+               <property name="checked"><bool>true</bool></property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="lblAvgCount"><property name="text"><string>Epochen:</string></property></widget>
+             </item>
+             <item>
+              <widget class="QSpinBox" name="spinAvgEpochs">
+               <property name="minimum"><number>1</number></property>
+               <property name="maximum"><number>999</number></property>
+               <property name="value"><number>10</number></property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="avgSpacer">
+               <property name="orientation"><enum>Qt::Horizontal</enum></property>
               </spacer>
              </item>
             </layout>
            </item>
-           <item row="2" column="0">
-            <layout class="QHBoxLayout" name="horizontalLayout_3">
+           <item>
+            <layout class="QHBoxLayout" name="pointBtnRow">
              <item>
-              <widget class="QLabel" name="label_5">
-               <property name="text">
-                <string>User</string>
-               </property>
+              <widget class="QPushButton" name="btnMeasurePoint">
+               <property name="text"><string>Punkt messen</string></property>
+               <property name="styleSheet"><string>font-weight:bold;</string></property>
               </widget>
              </item>
              <item>
-              <widget class="QLineEdit" name="inputUser"/>
+              <widget class="QLabel" name="lblMeasProgress"><property name="text"><string></string></property></widget>
              </item>
              <item>
-              <widget class="QLabel" name="label_6">
-               <property name="text">
-                <string>Password</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QLineEdit" name="inputPassword"/>
+              <spacer name="ptBtnSpacer">
+               <property name="orientation"><enum>Qt::Horizontal</enum></property>
+              </spacer>
              </item>
             </layout>
            </item>
-           <item row="1" column="0">
-            <layout class="QHBoxLayout" name="horizontalLayout">
+           <item>
+            <layout class="QGridLayout" name="measResultGrid">
+             <item row="0" column="0">
+              <widget class="QLabel" name="lblMeasLat">
+               <property name="text"><string>Lat: --</string></property>
+               <property name="styleSheet"><string>font-family:monospace;</string></property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="QLabel" name="lblMeasLon">
+               <property name="text"><string>Lon: --</string></property>
+               <property name="styleSheet"><string>font-family:monospace;</string></property>
+              </widget>
+             </item>
+             <item row="0" column="2">
+              <widget class="QLabel" name="lblMeasHeight">
+               <property name="text"><string>H: --</string></property>
+               <property name="styleSheet"><string>font-family:monospace;</string></property>
+              </widget>
+             </item>
+             <item row="1" column="0" colspan="3">
+              <widget class="QLabel" name="lblMeasAccuracy">
+               <property name="text"><string></string></property>
+               <property name="styleSheet"><string>font-size:10px;color:#888;</string></property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </item>
+
+        <!-- Track measurement -->
+        <item>
+         <widget class="QGroupBox" name="grpTrackMeasurement">
+          <property name="title"><string>Trackmessung</string></property>
+          <layout class="QVBoxLayout" name="trackMeasLayout">
+           <property name="spacing"><number>4</number></property>
+           <item>
+            <layout class="QHBoxLayout" name="trackIntervalRow">
              <item>
-              <widget class="QLabel" name="label">
-               <property name="text">
-                <string>Host</string>
-               </property>
+              <widget class="QLabel" name="lblTimeInterval"><property name="text"><string>Zeit[s]:</string></property></widget>
+             </item>
+             <item>
+              <widget class="QDoubleSpinBox" name="spinTimeInterval">
+               <property name="minimum"><double>0.1</double></property>
+               <property name="maximum"><double>3600.0</double></property>
+               <property name="value"><double>1.0</double></property>
+               <property name="decimals"><number>1</number></property>
               </widget>
              </item>
              <item>
-              <widget class="QLineEdit" name="inputHost"/>
+              <widget class="QLabel" name="lblDistInterval"><property name="text"><string>Dist[m]:</string></property></widget>
              </item>
              <item>
-              <widget class="QLabel" name="label_2">
-               <property name="text">
-                <string>Port</string>
-               </property>
+              <widget class="QDoubleSpinBox" name="spinDistInterval">
+               <property name="minimum"><double>0.0</double></property>
+               <property name="maximum"><double>10000.0</double></property>
+               <property name="value"><double>0.0</double></property>
+               <property name="decimals"><number>1</number></property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="trackBtnRow">
+             <item>
+              <widget class="QPushButton" name="btnStartTrack">
+               <property name="text"><string>Track starten</string></property>
+               <property name="styleSheet"><string>font-weight:bold;</string></property>
               </widget>
              </item>
              <item>
-              <widget class="QLineEdit" name="inputPort">
-               <property name="text">
-                <string>2101</string>
-               </property>
+              <widget class="QPushButton" name="btnStopTrack">
+               <property name="text"><string>Stoppen</string></property>
+               <property name="enabled"><bool>false</bool></property>
               </widget>
              </item>
              <item>
-              <widget class="QLabel" name="label_3">
-               <property name="text">
-                <string>Mountpoint</string>
-               </property>
+              <widget class="QLabel" name="lblTrackPointCount">
+               <property name="text"><string>Punkte:0</string></property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </item>
+
+        <!-- Layer names -->
+        <item>
+         <layout class="QGridLayout" name="layerNameGrid">
+          <item row="0" column="0">
+           <widget class="QLabel" name="lblLayerPoint"><property name="text"><string>Punkte-Layer:</string></property></widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QLineEdit" name="layerName">
+            <property name="text"><string>gnss_punkte</string></property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="lblLayerTrack"><property name="text"><string>Track-Layer:</string></property></widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QLineEdit" name="layerNameTrack">
+            <property name="text"><string>gnss_track</string></property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+
+        <item>
+         <spacer name="measSpacer">
+          <property name="orientation"><enum>Qt::Vertical</enum></property>
+         </spacer>
+        </item>
+       </layout>
+      </widget>
+
+      <!-- *** Satellites Tab *** -->
+      <widget class="QWidget" name="tabSatellites">
+       <attribute name="title"><string>Satelliten</string></attribute>
+       <layout class="QVBoxLayout" name="satLayout">
+        <property name="spacing"><number>4</number></property>
+        <item>
+         <widget class="QTabWidget" name="satSubTabs">
+          <property name="currentIndex"><number>0</number></property>
+          <widget class="QWidget" name="tabSkyPlot">
+           <attribute name="title"><string>Skyplot</string></attribute>
+           <layout class="QVBoxLayout" name="skyPlotLayout">
+            <item>
+             <widget class="QWidget" name="skyPlotWidget" native="true">
+              <property name="minimumSize"><size><width>200</width><height>200</height></size></property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+          <widget class="QWidget" name="tabSnrChart">
+           <attribute name="title"><string>SNR</string></attribute>
+           <layout class="QVBoxLayout" name="snrChartLayout">
+            <item>
+             <widget class="QWidget" name="snrChartWidget" native="true">
+              <property name="minimumSize"><size><width>200</width><height>200</height></size></property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+
+      <!-- *** Recording Tab *** -->
+      <widget class="QWidget" name="tabRecording">
+       <attribute name="title"><string>Aufzeichnung</string></attribute>
+       <layout class="QVBoxLayout" name="recLayout">
+        <property name="spacing"><number>4</number></property>
+        <item>
+         <widget class="QGroupBox" name="grpAutoRecord">
+          <property name="title"><string>Automatische Aufzeichnung</string></property>
+          <property name="checkable"><bool>true</bool></property>
+          <property name="checked"><bool>true</bool></property>
+          <layout class="QVBoxLayout" name="autoRecLayout">
+           <property name="spacing"><number>4</number></property>
+           <item>
+            <layout class="QHBoxLayout" name="recPathRow">
+             <item>
+              <widget class="QLabel" name="lblTempFolder"><property name="text"><string>Ordner:</string></property></widget>
+             </item>
+             <item>
+              <widget class="QgsFileWidget" name="fileSelectorTempFolder">
+               <property name="storageMode"><enum>QgsFileWidget::GetDirectory</enum></property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="recOptionsRow">
+             <item>
+              <widget class="QCheckBox" name="cbRecordReceiver">
+               <property name="text"><string>Receiver (NMEA)</string></property>
+               <property name="checked"><bool>true</bool></property>
               </widget>
              </item>
              <item>
-              <widget class="QLineEdit" name="inputMp"/>
+              <widget class="QCheckBox" name="cbRecordRTCM">
+               <property name="text"><string>RTCM</string></property>
+               <property name="checked"><bool>true</bool></property>
+              </widget>
              </item>
             </layout>
            </item>
@@ -262,137 +676,68 @@
          </widget>
         </item>
         <item>
-         <widget class="QGroupBox" name="groupBox">
-          <property name="title">
-           <string>Receiver</string>
-          </property>
-          <layout class="QVBoxLayout" name="verticalLayout_4">
+         <widget class="QGroupBox" name="grpProtocol">
+          <property name="title"><string>Messprotokoll</string></property>
+          <layout class="QVBoxLayout" name="protocolLayout">
            <item>
-            <layout class="QHBoxLayout" name="horizontalLayout_4">
-             <item>
-              <widget class="QLabel" name="label_7">
-               <property name="text">
-                <string>Serialport</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QLineEdit" name="inputSPort"/>
-             </item>
-             <item>
-              <widget class="QLabel" name="label_8">
-               <property name="text">
-                <string>Baudrate</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QLineEdit" name="inputSBaud"/>
-             </item>
-            </layout>
-           </item>
-          </layout>
-         </widget>
-        </item>
-       </layout>
-      </widget>
-      <widget class="QWidget" name="RecordTab">
-       <attribute name="title">
-        <string>Streams</string>
-       </attribute>
-       <layout class="QGridLayout" name="gridLayout_3">
-        <item row="0" column="0">
-         <widget class="QGroupBox" name="groupBoxCorrections">
-          <property name="title">
-           <string>Receiver data</string>
-          </property>
-          <layout class="QVBoxLayout" name="verticalLayout_3">
-           <item>
-            <widget class="QLabel" name="lblReceivedSerialData">
-             <property name="enabled">
-              <bool>false</bool>
-             </property>
-             <property name="text">
-              <string>0 Bytes/s</string>
-             </property>
+            <widget class="QTextEdit" name="txtProtocol">
+             <property name="readOnly"><bool>true</bool></property>
+             <property name="maximumHeight"><number>160</number></property>
             </widget>
            </item>
            <item>
-            <layout class="QHBoxLayout" name="horizontalLayout_6">
-             <item>
-              <widget class="QCheckBox" name="checkBoxRecordReceiver">
-               <property name="text">
-                <string>Record</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QgsFileWidget" name="fileSelectorReceiverRecord">
-               <property name="filter">
-                <string>nmea (*.txt*)</string>
-               </property>
-               <property name="storageMode">
-                <enum>QgsFileWidget::SaveFile</enum>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </item>
-          </layout>
-         </widget>
-        </item>
-        <item row="0" column="1">
-         <widget class="QGroupBox" name="groupBox_2">
-          <property name="title">
-           <string>NTRIP data</string>
-          </property>
-          <layout class="QGridLayout" name="gridLayout_5">
-           <item row="2" column="0">
-            <layout class="QHBoxLayout" name="horizontalLayout_7">
-             <item>
-              <widget class="QCheckBox" name="checkBoxRecordNtrip">
-               <property name="text">
-                <string>Record</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QgsFileWidget" name="fileSelectorNtripRecord">
-               <property name="filter">
-                <string>RTCM (*.rtcm*)</string>
-               </property>
-               <property name="storageMode">
-                <enum>QgsFileWidget::SaveFile</enum>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </item>
-           <item row="0" column="0">
-            <widget class="QLabel" name="lblReceivedRTCMData">
-             <property name="enabled">
-              <bool>false</bool>
-             </property>
-             <property name="text">
-              <string>0 Bytes/s</string>
-             </property>
+            <widget class="QPushButton" name="btnExportProtocol">
+             <property name="text"><string>Protokoll exportieren</string></property>
             </widget>
            </item>
           </layout>
          </widget>
         </item>
-       </layout>
-      </widget>
-      <widget class="QWidget" name="LogTab">
-       <attribute name="title">
-        <string>Log</string>
-       </attribute>
-       <layout class="QGridLayout" name="gridLayout_4">
-        <item row="0" column="0">
-         <widget class="QTextEdit" name="output"/>
+        <item>
+         <spacer name="recSpacer">
+          <property name="orientation"><enum>Qt::Vertical</enum></property>
+         </spacer>
         </item>
        </layout>
       </widget>
+
+      <!-- *** Log Tab *** -->
+      <widget class="QWidget" name="tabLog">
+       <attribute name="title"><string>Log</string></attribute>
+       <layout class="QVBoxLayout" name="logLayout">
+        <item>
+         <widget class="QLabel" name="lblLogHeader">
+          <property name="text"><string>Plugin-Meldungen:</string></property>
+          <property name="styleSheet"><string>font-weight:bold;font-size:10px;</string></property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QTextEdit" name="output">
+          <property name="readOnly"><bool>true</bool></property>
+          <property name="maximumHeight"><number>120</number></property>
+          <property name="font">
+           <font><pointsize>8</pointsize></font>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="lblNmeaLogHeader">
+          <property name="text"><string>NMEA Receiver-Daten (letzte 100 Zeilen):</string></property>
+          <property name="styleSheet"><string>font-weight:bold;font-size:10px;</string></property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPlainTextEdit" name="txtNmeaLog">
+          <property name="readOnly"><bool>true</bool></property>
+          <property name="font">
+           <font><family>Consolas</family><pointsize>7</pointsize></font>
+          </property>
+          <property name="maximumBlockCount"><number>100</number></property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+
      </widget>
     </item>
    </layout>

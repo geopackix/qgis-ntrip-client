@@ -5,12 +5,12 @@
 [general]
 name=QGIS-NTRIP-Client
 qgisMinimumVersion=3.0
-description=NTRIP client for qgis
-version=0.2
+description=GNSS NTRIP Client with RTK support, satellite visualization, and measurement tools
+version=0.5
 author=Manuel Hart (Geokoord.com)
 email=mh@geokoord.com
 
-about=This plugin can be used to connect to a GNSS receiver and feed in RTCM corrections from a NTRIP caster to use high accuracy GNSS RTK
+about=Full-featured GNSS NTRIP client for QGIS. Supports multiple NTRIP caster profiles, Unicore UM980/u-blox/Septentrio receivers, point measurement (with averaging), track recording, satellite sky plot and SNR visualization, DOP/RTK status display, antenna height correction, height transformation, and automatic session recording with measurement protocols.
 
 tracker=http://bugs
 repository=https://github.com/geopackix/qgis-ntrip-client
@@ -23,7 +23,7 @@ hasProcessingProvider=no
 # changelog=
 
 # Tags are comma separated with spaces allowed
-tags=python, ntrip, gnss, rtcm
+tags=python, ntrip, gnss, rtcm, rtk, satellite, measurement, um980
 
 homepage=https://github.com/geopackix/qgis-ntrip-client
 category=Plugins

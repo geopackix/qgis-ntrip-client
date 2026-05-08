@@ -15,5 +15,4 @@ class MapTool(QObject):
         crs_dest = QgsCoordinateReferenceSystem(4326)  # WGS 84
         transform = QgsCoordinateTransform(crs_src, crs_dest, QgsProject.instance())
         lat_lon = transform.transform(point)
-        print(f"Latitude: {lat_lon.y()}, Longitude: {lat_lon.x()}")
 
