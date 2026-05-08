@@ -111,6 +111,36 @@
      </layout>
     </item>
 
+    <!-- === Status row 3: UTM coordinates + Geoid === -->
+    <item>
+     <layout class="QHBoxLayout" name="statusRow3">
+      <property name="spacing"><number>6</number></property>
+      <item>
+       <widget class="QLabel" name="lblLiveE">
+        <property name="text"><string>E: --</string></property>
+        <property name="styleSheet"><string>font-family:monospace;font-size:10px;</string></property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="lblLiveN">
+        <property name="text"><string>N: --</string></property>
+        <property name="styleSheet"><string>font-family:monospace;font-size:10px;</string></property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="lblLiveGeoid">
+        <property name="text"><string></string></property>
+        <property name="styleSheet"><string>font-size:10px;color:#888;</string></property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="spacer3">
+        <property name="orientation"><enum>Qt::Horizontal</enum></property>
+       </spacer>
+      </item>
+     </layout>
+    </item>
+
     <!-- === Main Tabs === -->
     <item>
      <widget class="QTabWidget" name="tabWidget">
@@ -394,17 +424,7 @@
           <layout class="QHBoxLayout" name="heightTransLayout">
            <property name="spacing"><number>4</number></property>
            <item>
-            <widget class="QLabel" name="lblGeoidModel"><property name="text"><string>Geoid</string></property></widget>
-           </item>
-           <item>
-            <widget class="QComboBox" name="comboGeoidModel">
-             <item><property name="text"><string>GCG2016</string></property></item>
-             <item><property name="text"><string>EGM2008</string></property></item>
-             <item><property name="text"><string>EGM96</string></property></item>
-            </widget>
-           </item>
-           <item>
-            <widget class="QLabel" name="lblGeoidSep"><property name="text"><string>Undulation[m]</string></property></widget>
+            <widget class="QLabel" name="lblGeoidSep"><property name="text"><string>Geoidundulation [m]:</string></property></widget>
            </item>
            <item>
             <widget class="QDoubleSpinBox" name="spinGeoidSeparation">
@@ -412,6 +432,11 @@
              <property name="minimum"><double>-150.0</double></property>
              <property name="maximum"><double>150.0</double></property>
             </widget>
+           </item>
+           <item>
+            <spacer name="heightTransSpacer">
+             <property name="orientation"><enum>Qt::Horizontal</enum></property>
+            </spacer>
            </item>
           </layout>
          </widget>
@@ -586,6 +611,16 @@
           <item row="1" column="1">
            <widget class="QLineEdit" name="layerNameTrack">
             <property name="text"><string>gnss_track</string></property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="lblProjectedCrs"><property name="text"><string>Proj. KBS:</string></property></widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QPushButton" name="btnSelectCrs">
+            <property name="text"><string>EPSG:25832 – ETRS89 / UTM zone 32N</string></property>
+            <property name="toolTip"><string>Koordinatensystem für projizierte Koordinaten (E/N) auswählen</string></property>
+            <property name="styleSheet"><string>text-align:left;padding:2px 4px;</string></property>
            </widget>
           </item>
          </layout>

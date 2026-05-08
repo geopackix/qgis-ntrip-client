@@ -25,7 +25,7 @@ from .resources import *
 from qgis.core import (QgsProject, QgsPointXY, QgsFeature, QgsGeometry,
                         QgsVectorLayer, QgsField,
                         QgsCoordinateReferenceSystem, QgsCoordinateTransform,
-                        QgsWkbTypes)
+                        QgsDistanceArea, QgsWkbTypes)
 from qgis.gui import QgsRubberBand
 
 import serial
@@ -121,7 +121,14 @@ class QNTRIPClient:
 
         # Layers
         self.point_layer = None   # Measured points
-        self.track_layer = None   # Track points
+        self.track_layer = None   # Track line segments
+
+        # Track segment state
+        self._last_track_point = None   # Previous point dict for segment creation
+        self._track_segment_count = 0   # Segment counter within current track
+
+        # Projected CRS for E/N coordinates (default UTM Zone 32N)
+        self._projected_crs = QgsCoordinateReferenceSystem('EPSG:25832')
 
         # Temp folder
         self.temp_folder = os.path.join(self.plugin_dir, 'temp')
@@ -204,16 +211,16 @@ class QNTRIPClient:
         # Hoehentransformation
         self.settings.setValue(f'{self.settings_prefix}/heightTransform', 
                               self.dockwidget.grpHeightTransform.isChecked())
-        self.settings.setValue(f'{self.settings_prefix}/geoidModel', 
-                              self.dockwidget.comboGeoidModel.currentText())
         self.settings.setValue(f'{self.settings_prefix}/geoidSeparation', 
                               self.dockwidget.spinGeoidSeparation.value())
         
         # Layer-Namen
-        self.settings.setValue(f'{self.settings_prefix}/layerName', 
+        self.settings.setValue(f'{self.settings_prefix}/layerName',
                               self.dockwidget.layerName.text())
-        self.settings.setValue(f'{self.settings_prefix}/layerNameTrack', 
+        self.settings.setValue(f'{self.settings_prefix}/layerNameTrack',
                               self.dockwidget.layerNameTrack.text())
+        self.settings.setValue(f'{self.settings_prefix}/projectedCrs',
+                              self._projected_crs.authid())
         
         # Aufzeichnung
         self.settings.setValue(f'{self.settings_prefix}/autoRecord', 
@@ -301,11 +308,6 @@ class QNTRIPClient:
             h_trans = bool(h_trans)
         self.dockwidget.grpHeightTransform.setChecked(h_trans)
         
-        geoid_m = self.settings.value(f'{self.settings_prefix}/geoidModel', 'EGM96')
-        idx = self.dockwidget.comboGeoidModel.findText(geoid_m)
-        if idx >= 0:
-            self.dockwidget.comboGeoidModel.setCurrentIndex(idx)
-        
         geoid_s = self.settings.value(f'{self.settings_prefix}/geoidSeparation', 0.0)
         self.dockwidget.spinGeoidSeparation.setValue(float(geoid_s))
         
@@ -314,6 +316,12 @@ class QNTRIPClient:
             self.settings.value(f'{self.settings_prefix}/layerName', 'gnss_punkte'))
         self.dockwidget.layerNameTrack.setText(
             self.settings.value(f'{self.settings_prefix}/layerNameTrack', 'gnss_track'))
+        saved_crs = self.settings.value(f'{self.settings_prefix}/projectedCrs', 'EPSG:25832')
+        self._projected_crs = QgsCoordinateReferenceSystem(saved_crs)
+        if not self._projected_crs.isValid():
+            self._projected_crs = QgsCoordinateReferenceSystem('EPSG:25832')
+        self.dockwidget.btnSelectCrs.setText(
+            f'{self._projected_crs.authid()} – {self._projected_crs.description()}')
         
         # Aufzeichnung
         auto_rec = self.settings.value(f'{self.settings_prefix}/autoRecord', False)
@@ -714,20 +722,22 @@ class QNTRIPClient:
             self.session_recorder.record_fix_type(fixtype)
 
     def update_satellites(self, satellites):
-        """Buffer satellite data and update map every 3 seconds."""
-        self.satellite_buffer = list(satellites) if satellites else []
-        
-        # Restart 3-second timer
-        if self.satellite_update_timer:
-            self.satellite_update_timer.stop()
-            self.satellite_update_timer.start(3000)
-    
+        """Store latest satellite data (display updated by periodic timer)."""
+        if not isinstance(satellites, list) or not satellites:
+            return
+        # Guard: reject mountpoint dicts (have 'name' key, not 'prn')
+        if 'prn' not in satellites[0]:
+            return
+        self.satellite_buffer = satellites
+
     def _flush_satellite_buffer(self):
-        """Update satellite visualization with buffered data."""
+        """Called by 1 Hz timer: push buffered data to visualization widgets."""
         if not self.satellite_buffer:
             return
-        
         if self.sky_plot:
+            self.sky_plot.set_satellites(self.satellite_buffer)
+        if self.snr_chart:
+            self.snr_chart.set_satellites(self.satellite_buffer)
             self.sky_plot.set_satellites(self.satellite_buffer)
         if self.snr_chart:
             self.snr_chart.set_satellites(self.satellite_buffer)
@@ -748,11 +758,25 @@ class QNTRIPClient:
             f'font-weight:bold;padding:2px 6px;background:{color};'
             f'color:white;border-radius:3px;')
 
+    def _on_select_crs(self):
+        """Open QGIS projection selection dialog and update the projected CRS."""
+        from qgis.gui import QgsProjectionSelectionDialog
+        dlg = QgsProjectionSelectionDialog(self.dockwidget)
+        dlg.setCrs(self._projected_crs)
+        if dlg.exec_():
+            self._projected_crs = dlg.crs()
+            self.dockwidget.btnSelectCrs.setText(
+                f'{self._projected_crs.authid()} – {self._projected_crs.description()}')
+            self.saveSettings()
+
     def _reset_live_labels(self):
         self.dockwidget.lblLiveLat.setText('Lat: --')
         self.dockwidget.lblLiveLon.setText('Lon: --')
         self.dockwidget.lblLiveH.setText('H: --')
         self.dockwidget.lblLiveAcc.setText('Acc: --')
+        self.dockwidget.lblLiveE.setText('E: --')
+        self.dockwidget.lblLiveN.setText('N: --')
+        self.dockwidget.lblLiveGeoid.setText('')
 
     # =========================================================================
     # Live Position on Map (Rubber Bands)
@@ -818,6 +842,26 @@ class QNTRIPClient:
         self.dockwidget.lblLiveLon.setText(f'Lon: {lon:.8f}')
         self.dockwidget.lblLiveH.setText(f'H: {height:.3f}m')
         self.dockwidget.lblLiveAcc.setText(f'Acc: ±{accuracy_m:.2f}m')
+
+        # Compute and display UTM E/N in header row 3
+        try:
+            src_crs = QgsCoordinateReferenceSystem('EPSG:4326')
+            utm_xform = QgsCoordinateTransform(src_crs, self._projected_crs,
+                                               QgsProject.instance())
+            utm_pt = utm_xform.transform(QgsPointXY(lon, lat))
+            crs_id = self._projected_crs.authid()
+            self.dockwidget.lblLiveE.setText(f'E ({crs_id}): {utm_pt.x():.3f}')
+            self.dockwidget.lblLiveN.setText(f'N: {utm_pt.y():.3f}')
+        except Exception:
+            self.dockwidget.lblLiveE.setText('E: --')
+            self.dockwidget.lblLiveN.setText('N: --')
+
+        # Geoid undulation display
+        if self.dockwidget.grpHeightTransform.isChecked():
+            geoid_sep = self.dockwidget.spinGeoidSeparation.value()
+            self.dockwidget.lblLiveGeoid.setText(f'Geoid: {geoid_sep:+.3f}m')
+        else:
+            self.dockwidget.lblLiveGeoid.setText('')
 
     def _estimate_accuracy(self, fixtype, hdop):
         """Estimate horizontal accuracy in meters from fixtype and HDOP."""
@@ -1014,12 +1058,15 @@ class QNTRIPClient:
         t_int = self.dockwidget.spinTimeInterval.value()
         d_int = self.dockwidget.spinDistInterval.value()
         self.track_measurement.start(time_interval=t_int, distance_interval=d_int)
+        self._last_track_point = None
+        self._track_segment_count = 0
         self.dockwidget.btnStartTrack.setEnabled(False)
         self.dockwidget.btnStopTrack.setEnabled(True)
         self.out(f'Track gestartet (t={t_int}s, d={d_int}m)')
 
     def _on_stop_track(self):
         points = self.track_measurement.stop()
+        self._last_track_point = None
         self.dockwidget.btnStartTrack.setEnabled(True)
         self.dockwidget.btnStopTrack.setEnabled(False)
         self.out(f'Track gestoppt: {len(points)} Punkte')
@@ -1107,9 +1154,17 @@ class QNTRIPClient:
         name = self.dockwidget.layerName.text() or 'gnss_punkte'
         existing = QgsProject.instance().mapLayersByName(name)
         if existing:
-            self.point_layer = existing[0]
-            return
+            layer = existing[0]
+            # Check if layer has correct field count (should be 25 after latest changes: Lat/Lon + E/N + other fields)
+            expected_fields = 25
+            if layer.fields().count() != expected_fields:
+                # Layer has wrong schema - delete it and create new one
+                QgsProject.instance().removeMapLayer(layer)
+            else:
+                self.point_layer = layer
+                return
 
+        crs_code = self._projected_crs.authid()
         layer = QgsVectorLayer('Point?crs=EPSG:4326', name, 'memory')
         layer.dataProvider().addAttributes([
             QgsField('Zeitstempel',   QVariant.String),
@@ -1117,6 +1172,8 @@ class QNTRIPClient:
             QgsField('Lon',           QVariant.Double),
             QgsField('H_ellips',      QVariant.Double),   # ellipsoidal height
             QgsField('H_orth',        QVariant.Double),   # orthometric (geoid)
+            QgsField(f'E_{crs_code.replace(":","_")}', QVariant.Double),  # Easting
+            QgsField(f'N_{crs_code.replace(":","_")}', QVariant.Double),  # Northing
             QgsField('Fixtype',       QVariant.Int),
             QgsField('FixtypeStr',    QVariant.String),
             QgsField('HDOP',          QVariant.Double),
@@ -1140,20 +1197,33 @@ class QNTRIPClient:
         self.point_layer = layer
 
     def _ensure_track_layer(self):
-        """Create the track layer with full attributes if not existing."""
+        """Create the track layer (LineString segments) with full attributes if not existing."""
         name = self.dockwidget.layerNameTrack.text() or 'gnss_track'
         existing = QgsProject.instance().mapLayersByName(name)
         if existing:
-            self.track_layer = existing[0]
-            return
+            layer = existing[0]
+            # Check if layer has correct field count (21 fields for line segment schema)
+            expected_fields = 21
+            if layer.fields().count() != expected_fields:
+                # Layer has wrong schema - delete it and create new one
+                QgsProject.instance().removeMapLayer(layer)
+            else:
+                self.track_layer = layer
+                return
 
-        layer = QgsVectorLayer('Point?crs=EPSG:4326', name, 'memory')
+        crs_code = self._projected_crs.authid()
+        layer = QgsVectorLayer('LineString?crs=EPSG:4326', name, 'memory')
         layer.dataProvider().addAttributes([
-            QgsField('Zeitstempel',   QVariant.String),
-            QgsField('Lat',           QVariant.Double),
-            QgsField('Lon',           QVariant.Double),
-            QgsField('H_ellips',      QVariant.Double),
-            QgsField('H_orth',        QVariant.Double),
+            QgsField('Zeitstempel_S', QVariant.String),   # Start-Zeitstempel
+            QgsField('Zeitstempel_E', QVariant.String),   # End-Zeitstempel
+            QgsField('Lat_Start',     QVariant.Double),
+            QgsField('Lon_Start',     QVariant.Double),
+            QgsField('Lat_Ende',      QVariant.Double),
+            QgsField('Lon_Ende',      QVariant.Double),
+            QgsField('H_ellips',      QVariant.Double),   # vom Startpunkt
+            QgsField('H_orth',        QVariant.Double),   # vom Startpunkt
+            QgsField(f'E_{crs_code.replace(":","_")}', QVariant.Double),
+            QgsField(f'N_{crs_code.replace(":","_")}', QVariant.Double),
             QgsField('Fixtype',       QVariant.Int),
             QgsField('FixtypeStr',    QVariant.String),
             QgsField('HDOP',          QVariant.Double),
@@ -1163,7 +1233,8 @@ class QNTRIPClient:
             QgsField('AntH_m',        QVariant.Double),
             QgsField('GeoidSep_m',    QVariant.Double),
             QgsField('TrackID',       QVariant.String),
-            QgsField('PunktNr',       QVariant.Int),
+            QgsField('SegmentNr',     QVariant.Int),
+            QgsField('Laenge_m',      QVariant.Double),
         ])
         layer.updateFields()
         QgsProject.instance().addMapLayer(layer)
@@ -1177,14 +1248,22 @@ class QNTRIPClient:
         ant_h = self.dockwidget.spinAntennaHeight.value()
         geoid_sep = (self.dockwidget.spinGeoidSeparation.value()
                      if self.dockwidget.grpHeightTransform.isChecked() else 0.0)
-        geoid_model = (self.dockwidget.comboGeoidModel.currentText()
-                       if self.dockwidget.grpHeightTransform.isChecked() else '')
         receiver_type = self.dockwidget.comboReceiverType.currentText()
         caster_name = self.dockwidget.comboCaster.currentText()
         point_nr = self._point_count() + 1
 
         h_ellips = result['height'] + geoid_sep  # reverse to get ellipsoidal
         h_orth = result['height']
+
+        # Project to selected CRS
+        easting, northing = 0.0, 0.0
+        try:
+            src_crs = QgsCoordinateReferenceSystem('EPSG:4326')
+            xform = QgsCoordinateTransform(src_crs, self._projected_crs, QgsProject.instance())
+            pt = xform.transform(QgsPointXY(result['lon'], result['lat']))
+            easting, northing = round(pt.x(), 3), round(pt.y(), 3)
+        except Exception:
+            pass
 
         feat = QgsFeature()
         feat.setGeometry(QgsGeometry.fromPointXY(
@@ -1195,6 +1274,8 @@ class QNTRIPClient:
             result['lon'],
             h_ellips,
             h_orth,
+            easting,
+            northing,
             result['fixtype'],
             fix_str(result['fixtype']),
             round(result.get('hdop', 0.0), 3),
@@ -1208,7 +1289,7 @@ class QNTRIPClient:
             round(result.get('std_h_m', 0.0), 6),
             ant_h,
             geoid_sep,
-            geoid_model,
+            '',              # GeoidModell (nicht mehr via UI gesetzt)
             receiver_type,
             caster_name,
             point_nr,
@@ -1221,42 +1302,87 @@ class QNTRIPClient:
         self.point_layer.triggerRepaint()
 
     def _write_track_point_to_layer(self, point):
-        """Add a track point with full attributes to the track layer."""
+        """Buffer track point and write a line segment to the track layer on each new point."""
+        # First point of a track: just store it, no segment to write yet
+        if self._last_track_point is None:
+            self._last_track_point = point
+            return
+
         if not self.track_layer:
             self._ensure_track_layer()
+
+        p0 = self._last_track_point
+        p1 = point
 
         ant_h = self.dockwidget.spinAntennaHeight.value()
         geoid_sep = (self.dockwidget.spinGeoidSeparation.value()
                      if self.dockwidget.grpHeightTransform.isChecked() else 0.0)
 
-        h_ellips = point['height'] + geoid_sep
-        h_orth = point['height']
+        h_ellips = p0['height'] + geoid_sep
+        h_orth = p0['height']
+
+        # Project start point to selected CRS
+        easting, northing = 0.0, 0.0
+        try:
+            src_crs = QgsCoordinateReferenceSystem('EPSG:4326')
+            xform = QgsCoordinateTransform(src_crs, self._projected_crs, QgsProject.instance())
+            pt = xform.transform(QgsPointXY(p0['lon'], p0['lat']))
+            easting, northing = round(pt.x(), 3), round(pt.y(), 3)
+        except Exception:
+            pass
+
+        # Build line geometry from start to end
+        line_geom = QgsGeometry.fromPolylineXY([
+            QgsPointXY(p0['lon'], p0['lat']),
+            QgsPointXY(p1['lon'], p1['lat']),
+        ])
+
+        # Compute segment length in metres using ellipsoidal distance
+        length_m = 0.0
+        try:
+            da = QgsDistanceArea()
+            da.setSourceCrs(QgsCoordinateReferenceSystem('EPSG:4326'),
+                            QgsProject.instance().transformContext())
+            da.setEllipsoid('WGS84')
+            length_m = round(da.measureLength(line_geom), 3)
+        except Exception:
+            pass
+
+        self._track_segment_count += 1
 
         feat = QgsFeature()
-        feat.setGeometry(QgsGeometry.fromPointXY(
-            QgsPointXY(point['lon'], point['lat'])))
+        feat.setGeometry(line_geom)
         feat.setAttributes([
-            point['timestamp'],
-            point['lat'],
-            point['lon'],
-            h_ellips,
-            h_orth,
-            point['fixtype'],
-            fix_str(point['fixtype']),
-            round(point.get('hdop', 0.0), 3),
-            round(point.get('vdop', 0.0), 3),
-            round(point.get('pdop', 0.0), 3),
-            point.get('num_sats', 0),
-            ant_h,
-            geoid_sep,
-            point.get('track_id', ''),
-            point.get('point_num', 0),
+            p0['timestamp'],                        # Zeitstempel_S
+            p1['timestamp'],                        # Zeitstempel_E
+            p0['lat'],                              # Lat_Start
+            p0['lon'],                              # Lon_Start
+            p1['lat'],                              # Lat_Ende
+            p1['lon'],                              # Lon_Ende
+            h_ellips,                               # H_ellips
+            h_orth,                                 # H_orth
+            easting,                                # E_{crs}
+            northing,                               # N_{crs}
+            p0['fixtype'],                          # Fixtype
+            fix_str(p0['fixtype']),                 # FixtypeStr
+            round(p0.get('hdop', 0.0), 3),         # HDOP
+            round(p0.get('vdop', 0.0), 3),         # VDOP
+            round(p0.get('pdop', 0.0), 3),         # PDOP
+            p0.get('num_sats', 0),                  # NumSats
+            ant_h,                                  # AntH_m
+            geoid_sep,                              # GeoidSep_m
+            p0.get('track_id', ''),                 # TrackID
+            self._track_segment_count,              # SegmentNr
+            length_m,                               # Laenge_m
         ])
         ok, _ = self.track_layer.dataProvider().addFeatures([feat])
         if not ok:
             return
         self.track_layer.updateExtents()
         self.track_layer.triggerRepaint()
+
+        # Current point becomes the start of the next segment
+        self._last_track_point = p1
 
     # =========================================================================
     # UI Helpers
@@ -1307,14 +1433,6 @@ class QNTRIPClient:
         self.dockwidget.btnFetchMountpoints.setEnabled(False)
         self.out(f'Lade Mountpoints von {host}:{port}...')
 
-        def worker():
-            try:
-                mps = NtripClient.fetch_sourcetable(host, int(port), user, pw)
-                self.dockwidget.satDataReceived.emit(mps)   # reuse signal for passing list
-            except Exception as exc:
-                self.dockwidget.nmeaLineReceived.emit(f'[FEHLER Mountpoints] {exc}')
-
-        # Use a dedicated signal path: emit via a new approach using QTimer
         import threading
         from qgis.PyQt.QtCore import QTimer
 
@@ -1334,7 +1452,6 @@ class QNTRIPClient:
                     label += f"  {mp['country']}"
                 self.dockwidget.inputMp.addItem(label, mp['name'])
             self.dockwidget.inputMp.blockSignals(False)
-            # Restore previous value or select first
             if current:
                 idx = self.dockwidget.inputMp.findText(current)
                 if idx >= 0:
@@ -1387,11 +1504,12 @@ class QNTRIPClient:
                 self._populate_caster_combo()
                 self.dockwidget.fileSelectorTempFolder.setFilePath(self.temp_folder)
                 
-                # Initialize satellite update timer (3-second buffering)
+                # Satellite display: periodic 1 Hz timer (NOT single-shot)
                 from qgis.PyQt.QtCore import QTimer
                 self.satellite_update_timer = QTimer()
-                self.satellite_update_timer.setSingleShot(True)
+                self.satellite_update_timer.setInterval(1000)
                 self.satellite_update_timer.timeout.connect(self._flush_satellite_buffer)
+                self.satellite_update_timer.start()
                 
                 # Refresh COM ports first (populate list)
                 self._refresh_com_ports()
@@ -1424,6 +1542,9 @@ class QNTRIPClient:
                 self.dockwidget.btnAddCaster.clicked.connect(self._on_add_caster)
                 self.dockwidget.btnEditCaster.clicked.connect(self._on_edit_caster)
                 self.dockwidget.btnDeleteCaster.clicked.connect(self._on_delete_caster)
+
+                # CRS selector
+                self.dockwidget.btnSelectCrs.clicked.connect(self._on_select_crs)
 
                 # Measurement
                 self.dockwidget.btnMeasurePoint.clicked.connect(self._on_measure_point)
