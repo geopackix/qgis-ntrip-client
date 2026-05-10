@@ -69,14 +69,22 @@ class SessionRecorder:
     def write_nmea(self, data):
         """Write NMEA data to file."""
         if self.is_recording and self.record_nmea and self.nmea_file and not self.nmea_file.closed:
-            self.nmea_file.write(data)
-            self.stats['total_nmea_bytes'] += len(data)
+            try:
+                self.nmea_file.write(data)
+                self.nmea_file.flush()
+                self.stats['total_nmea_bytes'] += len(data)
+            except OSError:
+                pass
 
     def write_rtcm(self, data):
         """Write RTCM data to file."""
         if self.is_recording and self.record_rtcm and self.rtcm_file and not self.rtcm_file.closed:
-            self.rtcm_file.write(data)
-            self.stats['total_rtcm_bytes'] += len(data)
+            try:
+                self.rtcm_file.write(data)
+                self.rtcm_file.flush()
+                self.stats['total_rtcm_bytes'] += len(data)
+            except OSError:
+                pass
 
     def record_fix_type(self, fixtype):
         """Track fix type statistics."""

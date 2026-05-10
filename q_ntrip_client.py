@@ -181,8 +181,9 @@ class QNTRIPClient:
             return
         
         # Serielle Verbindung
+        # Save only the device port (e.g., 'COM1'), not the full display text
         self.settings.setValue(f'{self.settings_prefix}/serialPort', 
-                              self.dockwidget.inputSPort.currentText())
+                              self._extract_port_device(self.dockwidget.inputSPort.currentText()))
         self.settings.setValue(f'{self.settings_prefix}/serialBaud', 
                               self.dockwidget.inputSBaud.currentText())
         self.settings.setValue(f'{self.settings_prefix}/receiverType', 
@@ -251,8 +252,14 @@ class QNTRIPClient:
         
         # Serielle Verbindung
         port = self.settings.value(f'{self.settings_prefix}/serialPort', 'COM1')
-        if port and self.dockwidget.inputSPort.findText(port) >= 0:
-            self.dockwidget.inputSPort.setCurrentText(port)
+        if port:
+            # port is stored as device only (e.g., 'COM1')
+            # try to find a matching entry in the combo
+            for i in range(self.dockwidget.inputSPort.count()):
+                entry = self.dockwidget.inputSPort.itemText(i)
+                if self._extract_port_device(entry) == port:
+                    self.dockwidget.inputSPort.setCurrentIndex(i)
+                    break
         
         baud = self.settings.value(f'{self.settings_prefix}/serialBaud', '115200')
         if baud:
@@ -374,6 +381,12 @@ class QNTRIPClient:
         # Load complete
 
     def unload(self):
+        # Stop session recording so buffered data + protocol are written to disk
+        try:
+            if self.session_recorder and self.session_recorder.is_recording:
+                self.session_recorder.stop()
+        except Exception:
+            pass
         self._remove_rubber_bands()
         for action in self.actions:
             self.iface.removePluginMenu(self.tr(u'&QNTRIPClient'), action)
@@ -384,12 +397,23 @@ class QNTRIPClient:
     # RECEIVER Connection (independent)
     # =========================================================================
 
+    def _extract_port_device(self, combo_text):
+        """Extract the actual device name (e.g., 'COM1') from the combo text.
+        
+        The combo can contain formatted text like 'COM1 - u-blox GNSS receiver'.
+        This extracts just 'COM1'.
+        """
+        if not combo_text:
+            return ''
+        # Split on ' - ' and take the first part (the actual port)
+        return combo_text.split(' - ')[0].strip()
+
     def connectReceiver(self):
         """Start a background thread to open the serial port (non-blocking)."""
         if self._receiver_connected or self._receiver_connecting:
             return
 
-        serial_port = self.dockwidget.inputSPort.currentText().strip()
+        serial_port = self._extract_port_device(self.dockwidget.inputSPort.currentText())
         baud        = self.dockwidget.inputSBaud.currentText().strip()
         send_corr   = self.dockwidget.cbSendCorrection.isChecked()   # read on main thread
 
@@ -436,7 +460,7 @@ class QNTRIPClient:
             self.dockwidget.lblReceiverConnState.setText('● getrennt')
             self.dockwidget.lblReceiverConnState.setStyleSheet('font-size:10px;color:#888;')
 
-            port = self.dockwidget.inputSPort.currentText().strip()
+            port = self._extract_port_device(self.dockwidget.inputSPort.currentText())
             if '121' in error_msg or 'Semaphore' in error_msg:
                 self.out(f'✗ {port}: Gerät nicht erreichbar (Bluetooth nicht verbunden?)')
                 self.out('  → Bluetooth am Gerät einschalten und erneut versuchen')
@@ -465,7 +489,7 @@ class QNTRIPClient:
 
         self._receiver_connected = True
         self._update_receiver_buttons(True)
-        port = self.dockwidget.inputSPort.currentText().strip()
+        port = self._extract_port_device(self.dockwidget.inputSPort.currentText())
         baud = self.dockwidget.inputSBaud.currentText().strip()
         self.out(f'✓ Receiver verbunden: {port} @ {baud} Baud')
 
@@ -656,12 +680,12 @@ class QNTRIPClient:
             line = data.decode('ascii', errors='ignore').strip()
         else:
             line = str(data).strip()
-        if line:
-            self.dockwidget.nmeaLineReceived.emit(line)
-        # Also feed session recorder if active
+        # File write first (independent of UI signal) so an emit error can't skip it
         if self.session_recorder and self.session_recorder.is_recording:
             raw = data if isinstance(data, bytes) else str(data).encode()
             self.session_recorder.write_nmea(raw + b'\n')
+        if line:
+            self.dockwidget.nmeaLineReceived.emit(line)
 
     # --- Main thread handlers (called via Qt signal, safe for UI updates) ---
     def update_gnss_position(self, data):
@@ -977,24 +1001,40 @@ class QNTRIPClient:
     # =========================================================================
 
     def _refresh_com_ports(self):
-        """Scan and populate available serial COM ports."""
+        """Scan and populate available serial COM ports with device names."""
         try:
             import serial.tools.list_ports
-            ports = [p.device for p in serial.tools.list_ports.comports()]
-        except ImportError:
-            # Fallback: common port names
-            ports = [f'COM{i}' for i in range(1, 13)]
+            # Build list of "COM1 - Device Name" entries
+            port_entries = []
+            for p in serial.tools.list_ports.comports():
+                if p.description and p.description.strip():
+                    display_text = f"{p.device} - {p.description}"
+                else:
+                    display_text = p.device
+                port_entries.append(display_text)
+        except (ImportError, Exception):
+            # Fallback: common port names without descriptions
+            port_entries = [f'COM{i}' for i in range(1, 13)]
 
         current = self.dockwidget.inputSPort.currentText()
         self.dockwidget.inputSPort.blockSignals(True)
         self.dockwidget.inputSPort.clear()
-        self.dockwidget.inputSPort.addItems(ports)
-        if current in ports:
-            self.dockwidget.inputSPort.setCurrentText(current)
-        elif ports:
+        self.dockwidget.inputSPort.addItems(port_entries)
+        # Try to restore previous selection (match by device name or full text)
+        if current:
+            current_device = self._extract_port_device(current)
+            for i, entry in enumerate(port_entries):
+                if entry == current or self._extract_port_device(entry) == current_device:
+                    self.dockwidget.inputSPort.setCurrentIndex(i)
+                    break
+            else:
+                # Selection not found, pick first if available
+                if port_entries:
+                    self.dockwidget.inputSPort.setCurrentIndex(0)
+        elif port_entries:
             self.dockwidget.inputSPort.setCurrentIndex(0)
         self.dockwidget.inputSPort.blockSignals(False)
-        self.out(f'COM-Ports aktualisiert: {", ".join(ports) or "keine gefunden"}')
+        self.out(f'COM-Ports aktualisiert: {len(port_entries)} verfügbar')
 
     # =========================================================================
     # Measurement
@@ -1108,15 +1148,19 @@ class QNTRIPClient:
 
     def _start_session_recording(self):
         if not self.dockwidget.grpAutoRecord.isChecked():
+            self.out('ℹ Automatische Aufzeichnung deaktiviert.')
             return
         folder = self.dockwidget.fileSelectorTempFolder.filePath() or self.temp_folder
         rec_nmea = self.dockwidget.cbRecordReceiver.isChecked()
         rec_rtcm = self.dockwidget.cbRecordRTCM.isChecked()
 
-        self.session_recorder = SessionRecorder(folder)
-        self.session_recorder.start(record_nmea=rec_nmea, record_rtcm=rec_rtcm)
-
-        self.out(f'Aufzeichnung: {self.session_recorder.session_folder}')
+        try:
+            self.session_recorder = SessionRecorder(folder)
+            self.session_recorder.start(record_nmea=rec_nmea, record_rtcm=rec_rtcm)
+            self.out(f'✓ Aufzeichnung gestartet: {self.session_recorder.session_folder}')
+        except Exception as exc:
+            self.session_recorder = None
+            self.out(f'⚠ Aufzeichnung konnte nicht gestartet werden: {exc}')
 
     def _on_nmea_log(self, line):
         """Append NMEA line to the log window (main thread, via signal)."""
@@ -1155,10 +1199,12 @@ class QNTRIPClient:
         existing = QgsProject.instance().mapLayersByName(name)
         if existing:
             layer = existing[0]
-            # Check if layer has correct field count (should be 25 after latest changes: Lat/Lon + E/N + other fields)
-            expected_fields = 25
-            if layer.fields().count() != expected_fields:
-                # Layer has wrong schema - delete it and create new one
+            # Accept the layer if it has all required fields (works for both
+            # in-memory and GeoPackage layers, regardless of fid field presence)
+            required = {'Zeitstempel', 'Lat', 'Lon', 'Fixtype', 'PunktNr'}
+            layer_fields = {f.name() for f in layer.fields()}
+            if not required.issubset(layer_fields):
+                # Wrong schema - delete it and create new one
                 QgsProject.instance().removeMapLayer(layer)
             else:
                 self.point_layer = layer
@@ -1202,10 +1248,12 @@ class QNTRIPClient:
         existing = QgsProject.instance().mapLayersByName(name)
         if existing:
             layer = existing[0]
-            # Check if layer has correct field count (21 fields for line segment schema)
-            expected_fields = 21
-            if layer.fields().count() != expected_fields:
-                # Layer has wrong schema - delete it and create new one
+            # Accept the layer if it has all required fields (works for both
+            # in-memory and GeoPackage layers, regardless of fid field presence)
+            required = {'Zeitstempel_S', 'Lat_Start', 'Fixtype', 'SegmentNr'}
+            layer_fields = {f.name() for f in layer.fields()}
+            if not required.issubset(layer_fields):
+                # Wrong schema - delete it and create new one
                 QgsProject.instance().removeMapLayer(layer)
             else:
                 self.track_layer = layer
@@ -1265,35 +1313,39 @@ class QNTRIPClient:
         except Exception:
             pass
 
-        feat = QgsFeature()
+        crs_code = self._projected_crs.authid()
+        fields = self.point_layer.fields()
+        feat = QgsFeature(fields)
         feat.setGeometry(QgsGeometry.fromPointXY(
             QgsPointXY(result['lon'], result['lat'])))
-        feat.setAttributes([
-            result['timestamp'],
-            result['lat'],
-            result['lon'],
-            h_ellips,
-            h_orth,
-            easting,
-            northing,
-            result['fixtype'],
-            fix_str(result['fixtype']),
-            round(result.get('hdop', 0.0), 3),
-            round(result.get('vdop', 0.0), 3),
-            round(result.get('pdop', 0.0), 3),
-            result.get('num_sats', 0),
-            result.get('samples', 1),
-            1 if result.get('averaged') else 0,
-            round(result.get('std_lat_m', 0.0), 6),
-            round(result.get('std_lon_m', 0.0), 6),
-            round(result.get('std_h_m', 0.0), 6),
-            ant_h,
-            geoid_sep,
-            '',              # GeoidModell (nicht mehr via UI gesetzt)
-            receiver_type,
-            caster_name,
-            point_nr,
-        ])
+        feat['Zeitstempel'] = result['timestamp']
+        feat['Lat'] = result['lat']
+        feat['Lon'] = result['lon']
+        feat['H_ellips'] = h_ellips
+        feat['H_orth'] = h_orth
+        e_field = f'E_{crs_code.replace(":","_")}'
+        n_field = f'N_{crs_code.replace(":","_")}'
+        if fields.indexOf(e_field) >= 0:
+            feat[e_field] = easting
+        if fields.indexOf(n_field) >= 0:
+            feat[n_field] = northing
+        feat['Fixtype'] = int(result['fixtype'])
+        feat['FixtypeStr'] = fix_str(result['fixtype'])
+        feat['HDOP'] = round(result.get('hdop', 0.0), 3)
+        feat['VDOP'] = round(result.get('vdop', 0.0), 3)
+        feat['PDOP'] = round(result.get('pdop', 0.0), 3)
+        feat['NumSats'] = result.get('num_sats', 0)
+        feat['Epochen'] = result.get('samples', 1)
+        feat['Gemittelt'] = 1 if result.get('averaged') else 0
+        feat['StdLat_m'] = round(result.get('std_lat_m', 0.0), 6)
+        feat['StdLon_m'] = round(result.get('std_lon_m', 0.0), 6)
+        feat['StdH_m'] = round(result.get('std_h_m', 0.0), 6)
+        feat['AntH_m'] = ant_h
+        feat['GeoidSep_m'] = geoid_sep
+        feat['GeoidModell'] = ''
+        feat['ReceiverTyp'] = receiver_type
+        feat['CasterName'] = caster_name
+        feat['PunktNr'] = point_nr
         ok, _ = self.point_layer.dataProvider().addFeatures([feat])
         if not ok:
             self.out('⚠ Punkt konnte nicht in Layer geschrieben werden.')
@@ -1349,32 +1401,36 @@ class QNTRIPClient:
             pass
 
         self._track_segment_count += 1
+        crs_code = self._projected_crs.authid()
+        trk_fields = self.track_layer.fields()
 
-        feat = QgsFeature()
+        feat = QgsFeature(trk_fields)
         feat.setGeometry(line_geom)
-        feat.setAttributes([
-            p0['timestamp'],                        # Zeitstempel_S
-            p1['timestamp'],                        # Zeitstempel_E
-            p0['lat'],                              # Lat_Start
-            p0['lon'],                              # Lon_Start
-            p1['lat'],                              # Lat_Ende
-            p1['lon'],                              # Lon_Ende
-            h_ellips,                               # H_ellips
-            h_orth,                                 # H_orth
-            easting,                                # E_{crs}
-            northing,                               # N_{crs}
-            p0['fixtype'],                          # Fixtype
-            fix_str(p0['fixtype']),                 # FixtypeStr
-            round(p0.get('hdop', 0.0), 3),         # HDOP
-            round(p0.get('vdop', 0.0), 3),         # VDOP
-            round(p0.get('pdop', 0.0), 3),         # PDOP
-            p0.get('num_sats', 0),                  # NumSats
-            ant_h,                                  # AntH_m
-            geoid_sep,                              # GeoidSep_m
-            p0.get('track_id', ''),                 # TrackID
-            self._track_segment_count,              # SegmentNr
-            length_m,                               # Laenge_m
-        ])
+        feat['Zeitstempel_S'] = p0['timestamp']
+        feat['Zeitstempel_E'] = p1['timestamp']
+        feat['Lat_Start'] = p0['lat']
+        feat['Lon_Start'] = p0['lon']
+        feat['Lat_Ende'] = p1['lat']
+        feat['Lon_Ende'] = p1['lon']
+        feat['H_ellips'] = h_ellips
+        feat['H_orth'] = h_orth
+        e_field = f'E_{crs_code.replace(":","_")}'
+        n_field = f'N_{crs_code.replace(":","_")}'
+        if trk_fields.indexOf(e_field) >= 0:
+            feat[e_field] = easting
+        if trk_fields.indexOf(n_field) >= 0:
+            feat[n_field] = northing
+        feat['Fixtype'] = int(p0['fixtype'])
+        feat['FixtypeStr'] = fix_str(p0['fixtype'])
+        feat['HDOP'] = round(p0.get('hdop', 0.0), 3)
+        feat['VDOP'] = round(p0.get('vdop', 0.0), 3)
+        feat['PDOP'] = round(p0.get('pdop', 0.0), 3)
+        feat['NumSats'] = p0.get('num_sats', 0)
+        feat['AntH_m'] = ant_h
+        feat['GeoidSep_m'] = geoid_sep
+        feat['TrackID'] = p0.get('track_id', '')
+        feat['SegmentNr'] = self._track_segment_count
+        feat['Laenge_m'] = length_m
         ok, _ = self.track_layer.dataProvider().addFeatures([feat])
         if not ok:
             return
