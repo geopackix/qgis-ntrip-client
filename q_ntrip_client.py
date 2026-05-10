@@ -1004,11 +1004,55 @@ class QNTRIPClient:
         """Scan and populate available serial COM ports with device names."""
         try:
             import serial.tools.list_ports
+            import subprocess
+            import sys
+            
+            # Build a cache of friendly names from Device Manager
+            friendly_names = {}
+            if sys.platform == 'win32':
+                try:
+                    # PowerShell: Get all COM port device names
+                    ps_cmd = (
+                        "[System.Collections.Hashtable]$ports = @{}; "
+                        "Get-PnpDevice -Class Ports -ErrorAction SilentlyContinue | "
+                        "ForEach-Object { "
+                        "  if ($_.Name -match '\\((COM\\d+)\\)') { "
+                        "    $comport = $Matches[1]; "
+                        "    $ports[$comport] = $_.Name.Replace(' (' + $comport + ')', ''); "
+                        "  } "
+                        "}; "
+                        "$ports | ConvertTo-Json"
+                    )
+                    result = subprocess.run(
+                        ['powershell', '-NoProfile', '-Command', ps_cmd],
+                        capture_output=True,
+                        text=True,
+                        timeout=3
+                    )
+                    if result.returncode == 0 and result.stdout.strip():
+                        import json
+                        try:
+                            friendly_names = json.loads(result.stdout.strip())
+                        except:
+                            pass
+                except Exception:
+                    pass
+            
             # Build list of "COM1 - Device Name" entries
             port_entries = []
             for p in serial.tools.list_ports.comports():
-                if p.description and p.description.strip():
-                    display_text = f"{p.device} - {p.description}"
+                device_name = None
+                
+                # First, try the PowerShell cache
+                if p.device in friendly_names:
+                    device_name = friendly_names[p.device]
+                # Fallback to description (for non-Bluetooth or if PS fails)
+                elif p.description and p.description.strip():
+                    device_name = p.description
+                
+                # Build display text
+                if device_name:
+                    display_text = f"{p.device} - {device_name}"
                 else:
                     display_text = p.device
                 port_entries.append(display_text)
