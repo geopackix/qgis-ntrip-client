@@ -4,9 +4,9 @@
 
 [general]
 name=QGIS-NTRIP-Client
-qgisMinimumVersion=3.0
+qgisMinimumVersion=4.0
 description=GNSS NTRIP Client with RTK support, satellite visualization, and measurement tools
-version=0.5
+version=0.6
 author=Manuel Hart (Geokoord.com)
 email=mh@geokoord.com
 

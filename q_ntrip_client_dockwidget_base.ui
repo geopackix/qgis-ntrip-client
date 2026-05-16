@@ -58,6 +58,9 @@
       <item>
        <spacer name="spacer1">
         <property name="orientation"><enum>Qt::Horizontal</enum></property>
+        <property name="sizeHint" stdset="0">
+         <size><width>40</width><height>20</height></size>
+        </property>
        </spacer>
       </item>
       <item>
@@ -106,6 +109,9 @@
       <item>
        <spacer name="spacer2">
         <property name="orientation"><enum>Qt::Horizontal</enum></property>
+        <property name="sizeHint" stdset="0">
+         <size><width>40</width><height>20</height></size>
+        </property>
        </spacer>
       </item>
      </layout>
@@ -136,6 +142,9 @@
       <item>
        <spacer name="spacer3">
         <property name="orientation"><enum>Qt::Horizontal</enum></property>
+        <property name="sizeHint" stdset="0">
+         <size><width>40</width><height>20</height></size>
+        </property>
        </spacer>
       </item>
      </layout>
@@ -285,6 +294,9 @@
              <item>
               <spacer name="ntripBtnSpacer">
                <property name="orientation"><enum>Qt::Horizontal</enum></property>
+               <property name="sizeHint" stdset="0">
+                <size><width>40</width><height>20</height></size>
+               </property>
               </spacer>
              </item>
              <item>
@@ -401,6 +413,9 @@
              <item>
               <spacer name="recvBtnSpacer">
                <property name="orientation"><enum>Qt::Horizontal</enum></property>
+               <property name="sizeHint" stdset="0">
+                <size><width>40</width><height>20</height></size>
+               </property>
               </spacer>
              </item>
              <item>
@@ -436,6 +451,9 @@
            <item>
             <spacer name="heightTransSpacer">
              <property name="orientation"><enum>Qt::Horizontal</enum></property>
+             <property name="sizeHint" stdset="0">
+              <size><width>40</width><height>20</height></size>
+             </property>
             </spacer>
            </item>
           </layout>
@@ -445,6 +463,9 @@
         <item>
          <spacer name="connSpacer">
           <property name="orientation"><enum>Qt::Vertical</enum></property>
+          <property name="sizeHint" stdset="0">
+           <size><width>20</width><height>40</height></size>
+          </property>
          </spacer>
         </item>
        </layout>
@@ -483,6 +504,9 @@
              <item>
               <spacer name="avgSpacer">
                <property name="orientation"><enum>Qt::Horizontal</enum></property>
+               <property name="sizeHint" stdset="0">
+                <size><width>40</width><height>20</height></size>
+               </property>
               </spacer>
              </item>
             </layout>
@@ -501,6 +525,9 @@
              <item>
               <spacer name="ptBtnSpacer">
                <property name="orientation"><enum>Qt::Horizontal</enum></property>
+               <property name="sizeHint" stdset="0">
+                <size><width>40</width><height>20</height></size>
+               </property>
               </spacer>
              </item>
             </layout>
@@ -629,6 +656,9 @@
         <item>
          <spacer name="measSpacer">
           <property name="orientation"><enum>Qt::Vertical</enum></property>
+          <property name="sizeHint" stdset="0">
+           <size><width>20</width><height>40</height></size>
+          </property>
          </spacer>
         </item>
        </layout>
@@ -731,6 +761,9 @@
         <item>
          <spacer name="recSpacer">
           <property name="orientation"><enum>Qt::Vertical</enum></property>
+          <property name="sizeHint" stdset="0">
+           <size><width>20</width><height>40</height></size>
+          </property>
          </spacer>
         </item>
        </layout>

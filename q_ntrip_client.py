@@ -1497,7 +1497,7 @@ class QNTRIPClient:
 
     def _setup_satellite_widgets(self):
         self.sky_plot = SkyPlotWidget()
-        self.sky_plot.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.sky_plot.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         sky_layout = self.dockwidget.skyPlotWidget.layout()
         if sky_layout is None:
             sky_layout = QVBoxLayout(self.dockwidget.skyPlotWidget)
@@ -1506,7 +1506,7 @@ class QNTRIPClient:
         self.sky_plot.show()
 
         self.snr_chart = SnrBarWidget()
-        self.snr_chart.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.snr_chart.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         snr_layout = self.dockwidget.snrChartWidget.layout()
         if snr_layout is None:
             snr_layout = QVBoxLayout(self.dockwidget.snrChartWidget)
@@ -1597,7 +1597,7 @@ class QNTRIPClient:
                     self.dockwidget = QNTRIPClientDockWidget()
 
                 self.dockwidget.closingPlugin.connect(self.onClosePlugin)
-                self.iface.addDockWidget(Qt.RightDockWidgetArea, self.dockwidget)
+                self.iface.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.dockwidget)
 
                 self._setup_satellite_widgets()
                 self._apply_modern_style()
@@ -1681,4 +1681,8 @@ class QNTRIPClient:
 
         except Exception as e:
             import traceback
-            traceback.print_exc()
+            error_msg = traceback.format_exc()
+            print(error_msg)
+            QMessageBox.critical(self.iface.mainWindow(), 
+                                "QNTRIPClient Error", 
+                                f"Failed to initialize plugin:\n\n{error_msg}")

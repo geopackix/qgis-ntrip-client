@@ -39,7 +39,7 @@ class SkyPlotWidget(QWidget):
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         w = self.width()
         h = self.height()
@@ -114,7 +114,7 @@ class SkyPlotWidget(QWidget):
 
         if not self.satellites:
             painter.setPen(QColor(160, 160, 160))
-            painter.drawText(self.rect(), Qt.AlignCenter, "Keine Satellitendaten")
+            painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "Keine Satellitendaten")
 
         painter.end()
 
@@ -135,7 +135,7 @@ class SnrBarWidget(QWidget):
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         w = self.width()
         h = self.height()
@@ -145,7 +145,7 @@ class SnrBarWidget(QWidget):
 
         if not self.satellites:
             painter.setPen(QColor(160, 160, 160))
-            painter.drawText(self.rect(), Qt.AlignCenter, "Keine Satellitendaten")
+            painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "Keine Satellitendaten")
             painter.end()
             return
 
@@ -161,7 +161,7 @@ class SnrBarWidget(QWidget):
         spacing = (bar_area_w - n * bar_width) / max(n, 1)
 
         # Draw threshold lines
-        painter.setPen(QPen(QColor(200, 200, 200), 1, Qt.DashLine))
+        painter.setPen(QPen(QColor(200, 200, 200), 1, Qt.PenStyle.DashLine))
         for threshold in [10, 20, 30, 40, 50]:
             y = margin_top + bar_area_h * (1 - threshold / 55)
             painter.drawLine(int(margin_left), int(y), int(w - margin_right), int(y))
@@ -169,7 +169,7 @@ class SnrBarWidget(QWidget):
             font = QFont('Arial', 6)
             painter.setFont(font)
             painter.drawText(int(margin_left), int(y - 2), str(threshold))
-            painter.setPen(QPen(QColor(200, 200, 200), 1, Qt.DashLine))
+            painter.setPen(QPen(QColor(200, 200, 200), 1, Qt.PenStyle.DashLine))
 
         # Draw bars
         font = QFont('Arial', 6)
@@ -188,7 +188,7 @@ class SnrBarWidget(QWidget):
                 color = QColor(color.red() // 2, color.green() // 2, color.blue() // 2)
 
             painter.setBrush(QBrush(color))
-            painter.setPen(Qt.NoPen)
+            painter.setPen(Qt.PenStyle.NoPen)
             painter.drawRect(QRectF(x, y, bar_width, bar_h))
 
             # PRN label
