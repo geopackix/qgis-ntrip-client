@@ -318,51 +318,97 @@ class SessionRecorder:
         self._append_to_protocol(f'  {t}  {message}\n')
 
     def _append_point_block(self, pt):
-        """Append a full point measurement block to the protocol file."""
+        """Append a compact tabular point measurement block to the protocol file."""
         punkt_id = pt['punkt_nr'] or f"#{pt['nr']}"
-        dashes = '─' * max(0, W - 14 - len(str(punkt_id)))
+        sep = '─' * W
+        C = 25  # standard column width for 3-column rows
+
+        def c(label, value, w):
+            """Format 'label: value' left-justified to width w."""
+            return f'{label}: {value}'.ljust(w)
+
         lines = [
             '',
-            f'  ┌─ Punkt: {punkt_id} {dashes}',
-            f'  │ Zeitpunkt       : {pt["timestamp"]}',
-            f'  │ Fix-Typ         : {pt["fixtype_str"]} (GGA={pt["fixtype"]})',
-            f'  │ Satelliten      : {pt["num_sats"]}',
-            f'  │',
-            f'  │ ── Koordinaten ({pt["crs_code"]}) ──',
-            f'  │ East (E)        : {pt["easting"]:.4f} m',
-            f'  │ North (N)       : {pt["northing"]:.4f} m',
-            f'  │ Lat (WGS84)     : {pt["lat"]:.9f}°',
-            f'  │ Lon (WGS84)     : {pt["lon"]:.9f}°',
-            f'  │',
-            f'  │ ── Höhen ──',
-            f'  │ H (Antenne)     : {pt["h_antenna"]:.4f} m',
-            f'  │ Antennenhöhe    : {pt["inst_h"]:.3f} m',
-            f'  │ H (orth./Boden) : {pt["h_orth"]:.4f} m',
-            f'  │ H (ellips.)     : {pt["h_ellips"]:.4f} m',
-            f'  │ Geoid-Und.      : {pt["geoid_sep"]:.3f} m',
-            f'  │',
-            f'  │ ── DOP-Werte ──',
-            f'  │ HDOP            : {pt["hdop"]:.2f}',
-            f'  │ VDOP            : {pt["vdop"]:.2f}',
-            f'  │ PDOP            : {pt["pdop"]:.2f}',
-            f'  │',
-            f'  │ ── Mittelung / Statistik ──',
-            f'  │ Epochen (n)     : {pt["epochen"]}',
+            sep,
+            f'  Punktmessung  "{punkt_id}"',
+            sep,
         ]
+
+        # Row 1: CRS | Zeitpunkt | Fix-Typ  Sats  Epochen
+        lines.append(
+            f'  {c("CRS", pt["crs_code"], 18)}'
+            f'{c("Zeit", pt["timestamp"], 26)}'
+            f'Fix: {pt["fixtype_str"]}   '
+            f'Sats: {pt["num_sats"]}   '
+            f'Epochen: {pt["epochen"]}'
+        )
+
+        # Pre-format values to avoid backslash-in-f-string (Python < 3.12)
+        v_east       = f'{pt["easting"]:.4f} m'
+        v_north      = f'{pt["northing"]:.4f} m'
+        v_h_orth_ant = f'{pt["h_antenna"]:.4f} m'   # H (orth.) at antenna phase centre
+        v_h_orth     = f'{pt["h_orth"]:.4f} m'       # H (orth./Boden) at ground point
+        v_h_ellips   = f'{pt["h_ellips"]:.4f} m'
+        v_lat      = f'{pt["lat"]:.9f}\u00b0'
+        v_lon      = f'{pt["lon"]:.9f}\u00b0'
+        v_inst_h   = f'{pt["inst_h"]:.3f} m'
+        v_geoid    = f'{pt["geoid_sep"]:.3f} m'
+        v_hdop     = f'{pt["hdop"]:.2f}'
+        v_vdop     = f'{pt["vdop"]:.2f}'
+        v_pdop     = f'{pt["pdop"]:.2f}'
+
+        # Row 2: East | North | H (orth./Boden)
+        lines.append(
+            f'  {c("East", v_east, C)}'
+            f'{c("North", v_north, C)}'
+            f'H (orth./Boden): {v_h_orth}'
+        )
+
+        # Row 3: Lat | Lon | H (ellips.)
+        lines.append(
+            f'  {c("Lat", v_lat, C)}'
+            f'{c("Lon", v_lon, C)}'
+            f'H (ellips.):     {v_h_ellips}'
+        )
+
+        # Row 4: H (orth.) Antenne | Antennenhöhe | Geoid-Und.
+        lines.append(
+            f'  {c("H (orth.)", v_h_orth_ant, C)}'
+            f'{c("Ant.-Höhe", v_inst_h, C)}'
+            f'Geoid-Und.:      {v_geoid}'
+        )
+
+        # Row 5: HDOP | VDOP | PDOP
+        lines.append(
+            f'  {c("HDOP", v_hdop, 16)}'
+            f'{c("VDOP", v_vdop, 16)}'
+            f'PDOP: {v_pdop}'
+        )
+
+        # Row 6+: Statistics
         if pt['epochen'] > 1:
-            lines += [
-                f'  │ Freiheitsgrade  : {pt["dof"]}',
-                f'  │ σ Lat           : {pt["std_lat_m"]:.5f} m',
-                f'  │ σ Lon           : {pt["std_lon_m"]:.5f} m',
-                f'  │ σ Höhe          : {pt["std_h_m"]:.5f} m',
-                f'  │ σ Lage (2D)     : {pt["sigma_lage"]:.5f} m',
-                f'  │ σ 3D            : {pt["sigma_3d"]:.5f} m',
-            ]
+            v_slat  = f'{pt["std_lat_m"]:.5f} m'
+            v_slon  = f'{pt["std_lon_m"]:.5f} m'
+            v_sh    = f'{pt["std_h_m"]:.5f} m'
+            v_slage = f'{pt["sigma_lage"]:.5f} m'
+            v_s3d   = f'{pt["sigma_3d"]:.5f} m'
+            lines.append(
+                f'  {c("f", str(pt["dof"]), 12)}'
+                f'{c("σ Lat", v_slat, 22)}'
+                f'{c("σ Lon", v_slon, 22)}'
+                f'σ Höhe: {v_sh}'
+            )
+            lines.append(
+                f'  {c("σ Lage (2D)", v_slage, 30)}'
+                f'σ 3D: {v_s3d}'
+            )
         else:
-            lines.append('  │ (Einzelepoche – keine Statistik)')
+            lines.append('  (Einzelepoche – keine Statistik)')
+
         if pt['kommentar']:
-            lines += ['  │', f'  │ Bemerkung       : {pt["kommentar"]}']
-        lines.append(f'  └{"─" * (W - 3)}')
+            lines.append(f'  Bemerkung: {pt["kommentar"]}')
+
+        lines.append('')
         self._append_to_protocol('\n'.join(lines) + '\n')
 
     def _write_final_stats(self):

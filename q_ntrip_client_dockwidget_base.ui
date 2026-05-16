@@ -161,6 +161,139 @@
        <layout class="QVBoxLayout" name="connLayout">
         <property name="spacing"><number>4</number></property>
 
+        <!-- Receiver group -->
+        <item>
+         <widget class="QGroupBox" name="grpReceiver">
+          <property name="title"><string>GNSS Receiver</string></property>
+          <layout class="QGridLayout" name="receiverGrid">
+           <property name="spacing"><number>4</number></property>
+           <item row="0" column="0">
+            <widget class="QLabel" name="lblSerialPort"><property name="text"><string>Port</string></property></widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QComboBox" name="inputSPort">
+             <property name="editable"><bool>true</bool></property>
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+               <horstretch>1</horstretch><verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="2">
+            <widget class="QPushButton" name="btnRefreshPorts">
+             <property name="text"><string>&#x21ba;</string></property>
+             <property name="maximumSize"><size><width>26</width><height>16777215</height></size></property>
+             <property name="toolTip"><string>COM-Ports aktualisieren</string></property>
+            </widget>
+           </item>
+           <item row="0" column="3">
+            <widget class="QLabel" name="lblBaud"><property name="text"><string>Baud</string></property></widget>
+           </item>
+           <item row="0" column="4">
+            <widget class="QComboBox" name="inputSBaud">
+             <property name="editable"><bool>true</bool></property>
+             <item><property name="text"><string>9600</string></property></item>
+             <item><property name="text"><string>19200</string></property></item>
+             <item><property name="text"><string>38400</string></property></item>
+             <item><property name="text"><string>57600</string></property></item>
+             <item><property name="text"><string>115200</string></property></item>
+             <item><property name="text"><string>230400</string></property></item>
+             <item><property name="text"><string>460800</string></property></item>
+             <item><property name="text"><string>921600</string></property></item>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="lblReceiverType"><property name="text"><string>Typ</string></property></widget>
+           </item>
+           <item row="1" column="1" colspan="2">
+            <widget class="QComboBox" name="comboReceiverType">
+             <item><property name="text"><string>Unicore UM980</string></property></item>
+             <item><property name="text"><string>u-blox</string></property></item>
+             <item><property name="text"><string>Septentrio</string></property></item>
+             <item><property name="text"><string>Generisch (NMEA)</string></property></item>
+            </widget>
+           </item>
+           <item row="1" column="3">
+            <widget class="QLabel" name="lblInstrumentSN"><property name="text"><string>S/N:</string></property></widget>
+           </item>
+           <item row="1" column="4">
+            <widget class="QLineEdit" name="txtInstrumentSN">
+             <property name="placeholderText"><string>Seriennr.</string></property>
+             <property name="maximumWidth"><number>100</number></property>
+            </widget>
+           </item>
+           <item row="2" column="0" colspan="3">
+            <widget class="QCheckBox" name="cbSendCorrection">
+             <property name="text"><string>Korrekturdaten senden</string></property>
+             <property name="checked"><bool>true</bool></property>
+            </widget>
+           </item>
+           <item row="2" column="3" colspan="2">
+            <widget class="QPushButton" name="btnReceiverConfig">
+             <property name="text"><string>Konfigurieren</string></property>
+            </widget>
+           </item>
+           <!-- Receiver connect buttons -->
+           <item row="3" column="0" colspan="5">
+            <layout class="QHBoxLayout" name="receiverBtnRow">
+             <item>
+              <widget class="QPushButton" name="btnConnectReceiver">
+               <property name="text"><string>Receiver verbinden</string></property>
+               <property name="styleSheet"><string>font-weight:bold;</string></property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="btnDisconnectReceiver">
+               <property name="text"><string>Trennen</string></property>
+               <property name="enabled"><bool>false</bool></property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="recvBtnSpacer">
+               <property name="orientation"><enum>Qt::Horizontal</enum></property>
+               <property name="sizeHint" stdset="0">
+                <size><width>40</width><height>20</height></size>
+               </property>
+              </spacer>
+             </item>
+             <item>
+              <widget class="QLabel" name="lblReceiverConnState">
+               <property name="text"><string>&#x25cf; getrennt</string></property>
+               <property name="styleSheet"><string>font-size:10px;color:#888;</string></property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </item>
+
+        <!-- Projektion -->
+        <item>
+         <widget class="QGroupBox" name="grpProjection">
+          <property name="title"><string>Projektion</string></property>
+          <layout class="QHBoxLayout" name="projectionLayout">
+           <property name="spacing"><number>4</number></property>
+           <item>
+            <widget class="QLabel" name="lblProjectedCrs"><property name="text"><string>KBS:</string></property></widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btnSelectCrs">
+             <property name="text"><string>EPSG:25832 – ETRS89 / UTM zone 32N</string></property>
+             <property name="toolTip"><string>Koordinatensystem für projizierte Koordinaten (E/N) auswählen</string></property>
+             <property name="styleSheet"><string>text-align:left;padding:2px 4px;</string></property>
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+               <horstretch>1</horstretch><verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+
         <!-- NTRIP Caster group -->
         <item>
          <widget class="QGroupBox" name="grpCaster">
@@ -320,114 +453,6 @@
          </widget>
         </item>
 
-        <!-- Receiver group -->
-        <item>
-         <widget class="QGroupBox" name="grpReceiver">
-          <property name="title"><string>GNSS Receiver</string></property>
-          <layout class="QGridLayout" name="receiverGrid">
-           <property name="spacing"><number>4</number></property>
-           <item row="0" column="0">
-            <widget class="QLabel" name="lblSerialPort"><property name="text"><string>Port</string></property></widget>
-           </item>
-           <item row="0" column="1">
-            <widget class="QComboBox" name="inputSPort">
-             <property name="editable"><bool>true</bool></property>
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-               <horstretch>1</horstretch><verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="2">
-            <widget class="QPushButton" name="btnRefreshPorts">
-             <property name="text"><string>&#x21ba;</string></property>
-             <property name="maximumSize"><size><width>26</width><height>16777215</height></size></property>
-             <property name="toolTip"><string>COM-Ports aktualisieren</string></property>
-            </widget>
-           </item>
-           <item row="0" column="3">
-            <widget class="QLabel" name="lblBaud"><property name="text"><string>Baud</string></property></widget>
-           </item>
-           <item row="0" column="4">
-            <widget class="QComboBox" name="inputSBaud">
-             <property name="editable"><bool>true</bool></property>
-             <item><property name="text"><string>9600</string></property></item>
-             <item><property name="text"><string>19200</string></property></item>
-             <item><property name="text"><string>38400</string></property></item>
-             <item><property name="text"><string>57600</string></property></item>
-             <item><property name="text"><string>115200</string></property></item>
-             <item><property name="text"><string>230400</string></property></item>
-             <item><property name="text"><string>460800</string></property></item>
-             <item><property name="text"><string>921600</string></property></item>
-            </widget>
-           </item>
-           <item row="1" column="0">
-            <widget class="QLabel" name="lblReceiverType"><property name="text"><string>Typ</string></property></widget>
-           </item>
-           <item row="1" column="1" colspan="2">
-            <widget class="QComboBox" name="comboReceiverType">
-             <item><property name="text"><string>Unicore UM980</string></property></item>
-             <item><property name="text"><string>u-blox</string></property></item>
-             <item><property name="text"><string>Septentrio</string></property></item>
-             <item><property name="text"><string>Generisch (NMEA)</string></property></item>
-            </widget>
-           </item>
-           <item row="1" column="3">
-            <widget class="QLabel" name="lblInstrumentSN"><property name="text"><string>S/N:</string></property></widget>
-           </item>
-           <item row="1" column="4">
-            <widget class="QLineEdit" name="txtInstrumentSN">
-             <property name="placeholderText"><string>Seriennr.</string></property>
-             <property name="maximumWidth"><number>100</number></property>
-            </widget>
-           </item>
-           <item row="2" column="0" colspan="3">
-            <widget class="QCheckBox" name="cbSendCorrection">
-             <property name="text"><string>Korrekturdaten senden</string></property>
-             <property name="checked"><bool>true</bool></property>
-            </widget>
-           </item>
-           <item row="2" column="3" colspan="2">
-            <widget class="QPushButton" name="btnReceiverConfig">
-             <property name="text"><string>Konfigurieren</string></property>
-            </widget>
-           </item>
-           <!-- Receiver connect buttons -->
-           <item row="3" column="0" colspan="5">
-            <layout class="QHBoxLayout" name="receiverBtnRow">
-             <item>
-              <widget class="QPushButton" name="btnConnectReceiver">
-               <property name="text"><string>Receiver verbinden</string></property>
-               <property name="styleSheet"><string>font-weight:bold;</string></property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QPushButton" name="btnDisconnectReceiver">
-               <property name="text"><string>Trennen</string></property>
-               <property name="enabled"><bool>false</bool></property>
-              </widget>
-             </item>
-             <item>
-              <spacer name="recvBtnSpacer">
-               <property name="orientation"><enum>Qt::Horizontal</enum></property>
-               <property name="sizeHint" stdset="0">
-                <size><width>40</width><height>20</height></size>
-               </property>
-              </spacer>
-             </item>
-             <item>
-              <widget class="QLabel" name="lblReceiverConnState">
-               <property name="text"><string>&#x25cf; getrennt</string></property>
-               <property name="styleSheet"><string>font-size:10px;color:#888;</string></property>
-              </widget>
-             </item>
-            </layout>
-           </item>
-          </layout>
-         </widget>
-        </item>
-
         <!-- Height Transformation -->
         <item>
          <widget class="QGroupBox" name="grpHeightTransform">
@@ -577,7 +602,10 @@
              <item>
               <widget class="QPushButton" name="btnMeasurePoint">
                <property name="text"><string>Punkt messen</string></property>
-               <property name="styleSheet"><string>font-weight:bold;</string></property>
+               <property name="minimumSize">
+                <size><width>130</width><height>42</height></size>
+               </property>
+               <property name="styleSheet"><string>font-weight:bold;font-size:13px;padding:8px 18px;</string></property>
               </widget>
              </item>
              <item>
@@ -699,16 +727,6 @@
           <item row="1" column="1">
            <widget class="QLineEdit" name="layerNameTrack">
             <property name="text"><string>gnss_track</string></property>
-           </widget>
-          </item>
-          <item row="2" column="0">
-           <widget class="QLabel" name="lblProjectedCrs"><property name="text"><string>Proj. KBS:</string></property></widget>
-          </item>
-          <item row="2" column="1">
-           <widget class="QPushButton" name="btnSelectCrs">
-            <property name="text"><string>EPSG:25832 – ETRS89 / UTM zone 32N</string></property>
-            <property name="toolTip"><string>Koordinatensystem für projizierte Koordinaten (E/N) auswählen</string></property>
-            <property name="styleSheet"><string>text-align:left;padding:2px 4px;</string></property>
            </widget>
           </item>
          </layout>

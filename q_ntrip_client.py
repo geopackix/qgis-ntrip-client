@@ -27,7 +27,7 @@ from .resources import *
 from qgis.core import (QgsProject, QgsPointXY, QgsFeature, QgsGeometry,
                         QgsVectorLayer, QgsField,
                         QgsCoordinateReferenceSystem, QgsCoordinateTransform,
-                        QgsDistanceArea, QgsWkbTypes)
+                        QgsDistanceArea, QgsWkbTypes, QgsLayerTreeLayer)
 from qgis.gui import QgsRubberBand
 
 import serial
@@ -206,6 +206,8 @@ class QNTRIPClient:
         # Layers
         self.point_layer = None   # Measured points
         self.track_layer = None   # Track line segments
+        self._layer_group = None  # QGIS layer tree group for current session
+        self._layer_group_name = ''  # name of the group (for robust lookup)
 
         # Track segment state
         self._last_track_point = None   # Previous point dict for segment creation
@@ -594,6 +596,11 @@ class QNTRIPClient:
         baud = self.dockwidget.inputSBaud.currentText().strip()
         self.out(f'✓ Receiver verbunden: {port} @ {baud} Baud')
 
+        # Create a dated layer group for this session
+        root = QgsProject.instance().layerTreeRoot()
+        self._layer_group_name = f'GNSS {datetime.now().strftime("%Y-%m-%d %H:%M")}'
+        self._layer_group = root.insertGroup(0, self._layer_group_name)
+        self.out(f'Layer-Gruppe erstellt: "{self._layer_group_name}" (valid={self._layer_group is not None})')
         self._ensure_point_layer()
         self._ensure_track_layer()
         self._start_session_recording()
@@ -897,7 +904,7 @@ class QNTRIPClient:
         from qgis.gui import QgsProjectionSelectionDialog
         dlg = QgsProjectionSelectionDialog(self.dockwidget)
         dlg.setCrs(self._projected_crs)
-        if dlg.exec_():
+        if dlg.exec():
             self._projected_crs = dlg.crs()
             self.dockwidget.btnSelectCrs.setText(
                 f'{self._projected_crs.authid()} – {self._projected_crs.description()}')
@@ -1479,6 +1486,38 @@ class QNTRIPClient:
     # Layer Management (rich attributes)
     # =========================================================================
 
+    def _place_layer_in_group(self, layer, at_top=False):
+        """Add layer to the project registry and place it inside the session group."""
+        # Find target group by name (robust against stale C++ pointer)
+        root = QgsProject.instance().layerTreeRoot()
+        target_group = None
+        if self._layer_group_name:
+            target_group = root.findGroup(self._layer_group_name)
+        self.out(f'  → Platziere Layer "{layer.name()}" | Gruppe="{self._layer_group_name}" found={target_group is not None}')
+        # Official PyQGIS cookbook pattern: addMapLayer(False) + group.addLayer()
+        QgsProject.instance().addMapLayer(layer, False)
+        if target_group is not None:
+            target_group.addLayer(layer)
+        else:
+            root.addLayer(layer)
+
+    def _move_layer_to_group(self, layer, insert_at_top=False):
+        """Move an already-registered layer into the session group."""
+        root = QgsProject.instance().layerTreeRoot()
+        target_group = None
+        if self._layer_group_name:
+            target_group = root.findGroup(self._layer_group_name)
+        if not target_group:
+            return
+        node = root.findLayer(layer.id())
+        if node and node.parent() is not target_group:
+            cloned = node.clone()
+            node.parent().removeChildNode(node)
+            if insert_at_top:
+                target_group.insertChildNode(0, cloned)
+            else:
+                target_group.addChildNode(cloned)
+
     def _ensure_point_layer(self):
         """Create the measured-points layer with full attributes if not existing."""
         name = self.dockwidget.layerName.text() or 'gnss_punkte'
@@ -1494,6 +1533,7 @@ class QNTRIPClient:
                 QgsProject.instance().removeMapLayer(layer)
             else:
                 self.point_layer = layer
+                self._move_layer_to_group(layer, insert_at_top=True)
                 return
 
         crs_code = self._projected_crs.authid()
@@ -1526,7 +1566,7 @@ class QNTRIPClient:
             QgsField('Kommentar',     QVariant.String, len=200),
         ])
         layer.updateFields()
-        QgsProject.instance().addMapLayer(layer)
+        self._place_layer_in_group(layer, at_top=True)
         style_path = os.path.join(self.plugin_dir, 'gnssStyle.qml')
         layer.loadNamedStyle(style_path)
         layer.triggerRepaint()
@@ -1547,6 +1587,7 @@ class QNTRIPClient:
                 QgsProject.instance().removeMapLayer(layer)
             else:
                 self.track_layer = layer
+                self._move_layer_to_group(layer, insert_at_top=False)
                 return
 
         crs_code = self._projected_crs.authid()
@@ -1575,7 +1616,7 @@ class QNTRIPClient:
             QgsField('Laenge_m',      QVariant.Double),
         ])
         layer.updateFields()
-        QgsProject.instance().addMapLayer(layer)
+        self._place_layer_in_group(layer, at_top=False)
         style_path = os.path.join(self.plugin_dir, 'gnssTrackStyle.qml')
         layer.loadNamedStyle(style_path)
         layer.triggerRepaint()
