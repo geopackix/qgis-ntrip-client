@@ -18,7 +18,9 @@ if plugin_dir not in sys.path:
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt, QVariant
 from qgis.PyQt.QtGui import QIcon, QColor
 from qgis.PyQt.QtWidgets import (QAction, QInputDialog, QMessageBox,
-                                  QFileDialog, QVBoxLayout, QSizePolicy)
+                                  QFileDialog, QVBoxLayout, QSizePolicy,
+                                  QDialog, QDialogButtonBox, QFormLayout,
+                                  QLabel, QLineEdit, QDoubleSpinBox)
 
 from .resources import *
 
@@ -57,6 +59,88 @@ _FIX_COLORS = {
 
 def fix_str(ft):
     return _FIX_STRINGS.get(ft, f"Unbekannt({ft})")
+
+
+class PunktSpeichernDialog(QDialog):
+    """Modal dialog shown after measurement when Auto-Speichern is disabled."""
+
+    def __init__(self, punkt_nr, x, y, h_orth, kommentar, inst_h, crs_label, fixtype=0, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle('Punkt speichern')
+        self.setMinimumWidth(320)
+
+        form = QFormLayout(self)
+        form.setSpacing(6)
+
+        # Fix type with color
+        fix_label = QLabel(fix_str(fixtype))
+        fix_color = _FIX_COLORS.get(fixtype, '#555555')
+        fix_label.setStyleSheet(
+            f'font-weight:bold; padding:2px 8px; border-radius:3px;'
+            f'background:{fix_color}; color:white;')
+        form.addRow('Fix:', fix_label)
+
+        self._edit_nr = QLineEdit(punkt_nr)
+        self._edit_nr.setMaxLength(50)
+        form.addRow('Punktnr.:', self._edit_nr)
+
+        form.addRow(f'X ({crs_label}):', QLabel(f'{x:.3f}'))
+        form.addRow(f'Y ({crs_label}):', QLabel(f'{y:.3f}'))
+
+        self._spin_h = QDoubleSpinBox()
+        self._spin_h.setDecimals(4)
+        self._spin_h.setRange(-9999.0, 9999.0)
+        self._spin_h.setSingleStep(0.001)
+        self._spin_h.setValue(h_orth)
+        form.addRow('H Antenne [m]:', self._spin_h)
+
+        self._spin_inst_h = QDoubleSpinBox()
+        self._spin_inst_h.setDecimals(3)
+        self._spin_inst_h.setRange(0.0, 10.0)
+        self._spin_inst_h.setSingleStep(0.001)
+        self._spin_inst_h.setValue(inst_h)
+        form.addRow('Inst.H [m]:', self._spin_inst_h)
+
+        self._lbl_h_boden = QLabel()
+        self._lbl_h_boden.setStyleSheet('font-weight:bold;')
+        self._update_h_boden()
+        form.addRow('H Boden [m]:', self._lbl_h_boden)
+
+        self._spin_h.valueChanged.connect(self._update_h_boden)
+        self._spin_inst_h.valueChanged.connect(self._update_h_boden)
+
+        self._edit_kommentar = QLineEdit(kommentar)
+        self._edit_kommentar.setMaxLength(200)
+        form.addRow('Kommentar:', self._edit_kommentar)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Discard,
+            parent=self)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        # Map Discard → reject
+        buttons.button(QDialogButtonBox.StandardButton.Discard).clicked.connect(self.reject)
+        form.addRow(buttons)
+
+    def _update_h_boden(self):
+        h_boden = self._spin_h.value() - self._spin_inst_h.value()
+        self._lbl_h_boden.setText(f'{h_boden:.4f}')
+
+    @property
+    def punkt_nr(self):
+        return self._edit_nr.text().strip()
+
+    @property
+    def h_orth(self):
+        return self._spin_h.value()
+
+    @property
+    def inst_h(self):
+        return self._spin_inst_h.value()
+
+    @property
+    def kommentar(self):
+        return self._edit_kommentar.text().strip()
 
 
 class QNTRIPClient:
@@ -188,8 +272,8 @@ class QNTRIPClient:
                               self.dockwidget.inputSBaud.currentText())
         self.settings.setValue(f'{self.settings_prefix}/receiverType', 
                               self.dockwidget.comboReceiverType.currentText())
-        self.settings.setValue(f'{self.settings_prefix}/antennaHeight', 
-                              self.dockwidget.spinAntennaHeight.value())
+        self.settings.setValue(f'{self.settings_prefix}/instrumentSN',
+                              self.dockwidget.txtInstrumentSN.text())
         self.settings.setValue(f'{self.settings_prefix}/sendCorrection', 
                               self.dockwidget.cbSendCorrection.isChecked())
         
@@ -242,6 +326,10 @@ class QNTRIPClient:
                               self.dockwidget.spinTimeInterval.value())
         self.settings.setValue(f'{self.settings_prefix}/distInterval', 
                               self.dockwidget.spinDistInterval.value())
+        self.settings.setValue(f'{self.settings_prefix}/instH',
+                              self.dockwidget.spinInstH.value())
+        self.settings.setValue(f'{self.settings_prefix}/autoSave',
+                              self.dockwidget.cbAutoSave.isChecked())
         
         # No print statement - save silently
 
@@ -275,9 +363,9 @@ class QNTRIPClient:
             if idx >= 0:
                 self.dockwidget.comboReceiverType.setCurrentIndex(idx)
         
-        ant_h = self.settings.value(f'{self.settings_prefix}/antennaHeight', 0.0)
-        self.dockwidget.spinAntennaHeight.setValue(float(ant_h))
-        
+        inst_sn = self.settings.value(f'{self.settings_prefix}/instrumentSN', '')
+        self.dockwidget.txtInstrumentSN.setText(str(inst_sn))
+
         send_corr = self.settings.value(f'{self.settings_prefix}/sendCorrection', True)
         # Convert QSettings string/bool to Python bool (QSettings may store as string)
         if isinstance(send_corr, str):
@@ -377,7 +465,20 @@ class QNTRIPClient:
             self.dockwidget.spinDistInterval.setValue(float(d_int))
         except (ValueError, TypeError):
             self.dockwidget.spinDistInterval.setValue(0.0)
-        
+
+        inst_h = self.settings.value(f'{self.settings_prefix}/instH', 0.0)
+        try:
+            self.dockwidget.spinInstH.setValue(float(inst_h))
+        except (ValueError, TypeError):
+            self.dockwidget.spinInstH.setValue(0.0)
+
+        auto_save = self.settings.value(f'{self.settings_prefix}/autoSave', True)
+        if isinstance(auto_save, str):
+            auto_save = auto_save.lower() in ('true', '1', 'yes')
+        else:
+            auto_save = bool(auto_save)
+        self.dockwidget.cbAutoSave.setChecked(auto_save)
+
         # Load complete
 
     def unload(self):
@@ -622,6 +723,20 @@ class QNTRIPClient:
             idx = self.dockwidget.comboCaster.currentIndex()
             self.caster_manager.update_mountpoint(idx, mp)
             self.out(f'Verbinde zu {host}:{port}{ntripArgs["mountpoint"]}...')
+            # Update session recorder with NTRIP info
+            if self.session_recorder and self.session_recorder.is_recording:
+                self.session_recorder.set_connection_info(
+                    instrument_type=self.dockwidget.comboReceiverType.currentText(),
+                    instrument_sn=self.dockwidget.txtInstrumentSN.text().strip(),
+                    ntrip_caster=self.dockwidget.comboCaster.currentText(),
+                    ntrip_mountpoint=mp,
+                    ntrip_host=host,
+                    ntrip_port=port,
+                    projected_crs=self._projected_crs.authid(),
+                    geoid_model='',
+                    geoid_separation=(self.dockwidget.spinGeoidSeparation.value()
+                                      if self.dockwidget.grpHeightTransform.isChecked() else 0.0),
+                )
             self.saveSettings()
 
         except Exception as e:
@@ -696,11 +811,6 @@ class QNTRIPClient:
         fixtype = data.get('fixtype', 0)
         num_sats = data.get('num_sats', self.current_num_sats)
         hdop = data.get('hdop', self.current_hdop)
-
-        # Antenna height correction
-        ant_h = self.dockwidget.spinAntennaHeight.value()
-        if ant_h > 0:
-            height -= ant_h
 
         # Height transformation (geoid correction)
         height_orth = height
@@ -1121,15 +1231,90 @@ class QNTRIPClient:
                    if n > 1 else f'HDOP:{hdop:.1f}')
         self.dockwidget.lblMeasAccuracy.setText(acc_txt)
 
-        # Write to point layer
-        self._write_point_to_layer(result)
+        # Compute projected coordinates for display / modal dialog
+        easting, northing = 0.0, 0.0
+        try:
+            src_crs = QgsCoordinateReferenceSystem('EPSG:4326')
+            xform = QgsCoordinateTransform(src_crs, self._projected_crs, QgsProject.instance())
+            pt = xform.transform(QgsPointXY(result['lon'], result['lat']))
+            easting, northing = round(pt.x(), 3), round(pt.y(), 3)
+        except Exception:
+            pass
 
-        # Session protocol
+        punkt_nr_used = self.dockwidget.txtPunktNummer.text().strip()
+        overrides = {}
+
+        if self.dockwidget.cbAutoSave.isChecked():
+            # Auto-save: write directly without modal
+            self._write_point_to_layer(result)
+        else:
+            # Show modal dialog for review / editing before saving
+            dlg = PunktSpeichernDialog(
+                punkt_nr=punkt_nr_used,
+                x=easting,
+                y=northing,
+                h_orth=result['height'],
+                kommentar=self.dockwidget.txtKommentar.text().strip(),
+                inst_h=self.dockwidget.spinInstH.value(),
+                crs_label=self._projected_crs.authid(),
+                fixtype=int(result.get('fixtype', 0)),
+                parent=self.dockwidget,
+            )
+            if dlg.exec() != QDialog.DialogCode.Accepted:
+                self.out(f'Punkt verworfen.')
+                return
+            overrides = {
+                'punkt_nr': dlg.punkt_nr,
+                'h_orth': dlg.h_orth,
+                'inst_h': dlg.inst_h,
+                'kommentar': dlg.kommentar,
+            }
+            punkt_nr_used = dlg.punkt_nr
+            self._write_point_to_layer(result, overrides=overrides)
+
+        # Session protocol — pass full measurement data
         if self.session_recorder and self.session_recorder.is_recording:
-            self.session_recorder.record_point_measured(result)
-            self._update_protocol_display()
+            try:
+                inst_h = overrides.get('inst_h', self.dockwidget.spinInstH.value())
+                geoid_sep = (self.dockwidget.spinGeoidSeparation.value()
+                             if self.dockwidget.grpHeightTransform.isChecked() else 0.0)
+                h_ant = float(result['height'])
+                h_orth_ground = round(h_ant - float(inst_h), 4)
+                h_ellips_ground = round(h_orth_ground + float(geoid_sep), 4)
+                crs_code = self._projected_crs.authid()
+                kommentar = overrides.get('kommentar', self.dockwidget.txtKommentar.text().strip())
+                protocol_data = {
+                    'lat': float(result['lat']),
+                    'lon': float(result['lon']),
+                    'height': h_ant,
+                    'fixtype': int(result.get('fixtype', 0)),
+                    'samples': int(result.get('samples', 1)),
+                    'hdop': float(result.get('hdop') or 0.0),
+                    'vdop': float(result.get('vdop') or 0.0),
+                    'pdop': float(result.get('pdop') or 0.0),
+                    'num_sats': int(result.get('num_sats') or 0),
+                    'std_lat_m': float(result.get('std_lat_m') or 0.0),
+                    'std_lon_m': float(result.get('std_lon_m') or 0.0),
+                    'std_h_m': float(result.get('std_h_m') or 0.0),
+                    'easting': float(easting),
+                    'northing': float(northing),
+                    'punkt_nr': str(punkt_nr_used),
+                    'kommentar': kommentar,
+                    'inst_h': float(inst_h),
+                    'geoid_sep': float(geoid_sep),
+                    'h_ellips': h_ellips_ground,
+                    'h_orth': h_orth_ground,
+                    'crs_code': str(crs_code),
+                    'caster_name': self.dockwidget.comboCaster.currentText(),
+                    'timestamp': str(result.get('timestamp', '')),
+                }
+                self.session_recorder.record_point_measured(protocol_data)
+                self._update_protocol_display()
+            except Exception as _exc:
+                self.out(f'⚠ Protokoll-Fehler: {_exc}')
 
-        self.out(f'Punkt {self._point_count()}: Lat={lat:.8f} Lon={lon:.8f} H={height:.3f}m '
+        self.out(f'Punkt {punkt_nr_used or self._point_count()}: '
+                 f'Lat={lat:.8f} Lon={lon:.8f} H={height:.3f}m '
                  f'Fix={fix_str(result["fixtype"])} n={n}')
 
     def _on_measurement_progress(self, current, total):
@@ -1168,6 +1353,43 @@ class QNTRIPClient:
             return self.point_layer.featureCount()
         return 0
 
+    def _next_punkt_nummer(self, current: str) -> str:
+        """Return auto-incremented Punktnummer.
+
+        If ``current`` contains a '.' and the suffix is an integer, the suffix
+        is incremented.  The new value is chosen as max(existing suffixes for
+        the same prefix) + 1, so it is always consistent with what is already
+        in the point layer.
+        """
+        dot_idx = current.rfind('.')
+        if dot_idx == -1:
+            return current
+        prefix = current[:dot_idx]
+        suffix = current[dot_idx + 1:]
+        if not suffix.lstrip('-').isdigit():
+            return current
+        # Find the maximum existing suffix for this prefix in the layer
+        max_suffix = int(suffix)
+        if self.point_layer:
+            prefix_lower = prefix.lower()
+            for feat in self.point_layer.getFeatures():
+                val = feat['PunktNr']
+                if val is None:
+                    continue
+                val_str = str(val)
+                dot = val_str.rfind('.')
+                if dot == -1:
+                    continue
+                if val_str[:dot].lower() != prefix_lower:
+                    continue
+                try:
+                    existing = int(val_str[dot + 1:])
+                    if existing > max_suffix:
+                        max_suffix = existing
+                except ValueError:
+                    pass
+        return f'{prefix}.{max_suffix + 1}'
+
     # =========================================================================
     # Receiver Configuration
     # =========================================================================
@@ -1201,10 +1423,30 @@ class QNTRIPClient:
         try:
             self.session_recorder = SessionRecorder(folder)
             self.session_recorder.start(record_nmea=rec_nmea, record_rtcm=rec_rtcm)
+            # Set metadata from current connection state
+            self.session_recorder.set_connection_info(
+                instrument_type=self.dockwidget.comboReceiverType.currentText(),
+                instrument_sn=self.dockwidget.txtInstrumentSN.text().strip(),
+                ntrip_caster=self.dockwidget.comboCaster.currentText(),
+                ntrip_mountpoint=self.dockwidget.inputMp.currentText(),
+                ntrip_host=self.dockwidget.inputHost.text().strip(),
+                ntrip_port=self.dockwidget.inputPort.text().strip(),
+                projected_crs=self._projected_crs.authid(),
+                geoid_model='',
+                geoid_separation=(self.dockwidget.spinGeoidSeparation.value()
+                                  if self.dockwidget.grpHeightTransform.isChecked() else 0.0),
+            )
             self.out(f'✓ Aufzeichnung gestartet: {self.session_recorder.session_folder}')
         except Exception as exc:
             self.session_recorder = None
             self.out(f'⚠ Aufzeichnung konnte nicht gestartet werden: {exc}')
+
+    def _on_new_recording(self):
+        """Stop the current recording session and immediately start a new one."""
+        if self.session_recorder and self.session_recorder.is_recording:
+            self.session_recorder.stop()
+            self.out('✓ Aufzeichnung beendet.')
+        self._start_session_recording()
 
     def _on_nmea_log(self, line):
         """Append NMEA line to the log window (main thread, via signal)."""
@@ -1280,10 +1522,14 @@ class QNTRIPClient:
             QgsField('GeoidModell',   QVariant.String),
             QgsField('ReceiverTyp',   QVariant.String),
             QgsField('CasterName',    QVariant.String),
-            QgsField('PunktNr',       QVariant.Int),
+            QgsField('PunktNr',       QVariant.String, len=50),
+            QgsField('Kommentar',     QVariant.String, len=200),
         ])
         layer.updateFields()
         QgsProject.instance().addMapLayer(layer)
+        style_path = os.path.join(self.plugin_dir, 'gnssStyle.qml')
+        layer.loadNamedStyle(style_path)
+        layer.triggerRepaint()
         self.point_layer = layer
 
     def _ensure_track_layer(self):
@@ -1330,22 +1576,37 @@ class QNTRIPClient:
         ])
         layer.updateFields()
         QgsProject.instance().addMapLayer(layer)
+        style_path = os.path.join(self.plugin_dir, 'gnssTrackStyle.qml')
+        layer.loadNamedStyle(style_path)
+        layer.triggerRepaint()
         self.track_layer = layer
 
-    def _write_point_to_layer(self, result):
-        """Add a measured point with full attributes to the point layer."""
+    def _write_point_to_layer(self, result, overrides=None):
+        """Add a measured point with full attributes to the point layer.
+
+        ``overrides`` is an optional dict that may contain:
+          'punkt_nr'  – Punktnummer string (overrides txtPunktNummer)
+          'h_orth'    – orthometric height [m] (overrides result['height'])
+          'inst_h'    – instrument/antenna height [m] (overrides spinInstH)
+          'kommentar' – comment string
+        """
         if not self.point_layer:
             self._ensure_point_layer()
 
-        ant_h = self.dockwidget.spinAntennaHeight.value()
+        if overrides is None:
+            overrides = {}
+
+        inst_h = overrides.get('inst_h', self.dockwidget.spinInstH.value())
         geoid_sep = (self.dockwidget.spinGeoidSeparation.value()
                      if self.dockwidget.grpHeightTransform.isChecked() else 0.0)
         receiver_type = self.dockwidget.comboReceiverType.currentText()
         caster_name = self.dockwidget.comboCaster.currentText()
-        point_nr = self._point_count() + 1
+        punkt_nr = overrides.get('punkt_nr', self.dockwidget.txtPunktNummer.text().strip())
+        kommentar = overrides.get('kommentar', self.dockwidget.txtKommentar.text().strip())
 
-        h_ellips = result['height'] + geoid_sep  # reverse to get ellipsoidal
-        h_orth = result['height']
+        h_orth = overrides.get('h_orth', result['height'])
+        h_orth_ground = round(h_orth - inst_h, 4)       # ground height = antenna height − inst. height
+        h_ellips = round(h_orth_ground + geoid_sep, 4)  # ellipsoidal
 
         # Project to selected CRS
         easting, northing = 0.0, 0.0
@@ -1353,7 +1614,7 @@ class QNTRIPClient:
             src_crs = QgsCoordinateReferenceSystem('EPSG:4326')
             xform = QgsCoordinateTransform(src_crs, self._projected_crs, QgsProject.instance())
             pt = xform.transform(QgsPointXY(result['lon'], result['lat']))
-            easting, northing = round(pt.x(), 3), round(pt.y(), 3)
+            easting, northing = round(pt.x(), 4), round(pt.y(), 4)
         except Exception:
             pass
 
@@ -1366,7 +1627,7 @@ class QNTRIPClient:
         feat['Lat'] = result['lat']
         feat['Lon'] = result['lon']
         feat['H_ellips'] = h_ellips
-        feat['H_orth'] = h_orth
+        feat['H_orth'] = h_orth_ground
         e_field = f'E_{crs_code.replace(":","_")}'
         n_field = f'N_{crs_code.replace(":","_")}'
         if fields.indexOf(e_field) >= 0:
@@ -1384,18 +1645,24 @@ class QNTRIPClient:
         feat['StdLat_m'] = round(result.get('std_lat_m', 0.0), 6)
         feat['StdLon_m'] = round(result.get('std_lon_m', 0.0), 6)
         feat['StdH_m'] = round(result.get('std_h_m', 0.0), 6)
-        feat['AntH_m'] = ant_h
+        feat['AntH_m'] = inst_h
         feat['GeoidSep_m'] = geoid_sep
         feat['GeoidModell'] = ''
         feat['ReceiverTyp'] = receiver_type
         feat['CasterName'] = caster_name
-        feat['PunktNr'] = point_nr
+        feat['PunktNr'] = punkt_nr[:50] if punkt_nr else ''
+        if fields.indexOf('Kommentar') >= 0:
+            feat['Kommentar'] = kommentar[:200] if kommentar else ''
         ok, _ = self.point_layer.dataProvider().addFeatures([feat])
         if not ok:
             self.out('⚠ Punkt konnte nicht in Layer geschrieben werden.')
             return
         self.point_layer.updateExtents()
         self.point_layer.triggerRepaint()
+        # Auto-increment Punktnummer if it has a numeric suffix after '.'
+        next_nr = self._next_punkt_nummer(punkt_nr)
+        if next_nr != punkt_nr:
+            self.dockwidget.txtPunktNummer.setText(next_nr)
 
     def _write_track_point_to_layer(self, point):
         """Buffer track point and write a line segment to the track layer on each new point."""
@@ -1410,12 +1677,12 @@ class QNTRIPClient:
         p0 = self._last_track_point
         p1 = point
 
-        ant_h = self.dockwidget.spinAntennaHeight.value()
+        inst_h = self.dockwidget.spinInstH.value()
         geoid_sep = (self.dockwidget.spinGeoidSeparation.value()
                      if self.dockwidget.grpHeightTransform.isChecked() else 0.0)
 
-        h_ellips = p0['height'] + geoid_sep
-        h_orth = p0['height']
+        h_ellips = round(p0['height'] - inst_h + geoid_sep, 4)
+        h_orth = round(p0['height'] - inst_h, 4)
 
         # Project start point to selected CRS
         easting, northing = 0.0, 0.0
@@ -1423,7 +1690,7 @@ class QNTRIPClient:
             src_crs = QgsCoordinateReferenceSystem('EPSG:4326')
             xform = QgsCoordinateTransform(src_crs, self._projected_crs, QgsProject.instance())
             pt = xform.transform(QgsPointXY(p0['lon'], p0['lat']))
-            easting, northing = round(pt.x(), 3), round(pt.y(), 3)
+            easting, northing = round(pt.x(), 4), round(pt.y(), 4)
         except Exception:
             pass
 
@@ -1470,7 +1737,7 @@ class QNTRIPClient:
         feat['VDOP'] = round(p0.get('vdop', 0.0), 3)
         feat['PDOP'] = round(p0.get('pdop', 0.0), 3)
         feat['NumSats'] = p0.get('num_sats', 0)
-        feat['AntH_m'] = ant_h
+        feat['AntH_m'] = inst_h
         feat['GeoidSep_m'] = geoid_sep
         feat['TrackID'] = p0.get('track_id', '')
         feat['SegmentNr'] = self._track_segment_count
@@ -1493,7 +1760,7 @@ class QNTRIPClient:
         history = self.dockwidget.output.toPlainText()
         self.dockwidget.output.setPlainText(f'{ts} {message}\n{history}')
         if self.session_recorder and self.session_recorder.is_recording:
-            self.session_recorder.add_protocol_entry(message)
+            self.session_recorder._add_log(message)
 
     def _setup_satellite_widgets(self):
         self.sky_plot = SkyPlotWidget()
@@ -1657,6 +1924,7 @@ class QNTRIPClient:
 
                 # Protocol
                 self.dockwidget.btnExportProtocol.clicked.connect(self._on_export_protocol)
+                self.dockwidget.btnNewRecording.clicked.connect(self._on_new_recording)
 
                 # Thread-safe GNSS data signals (serial thread → main thread)
                 self.dockwidget.gnssPositionReceived.connect(self.update_gnss_position)

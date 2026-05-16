@@ -374,14 +374,12 @@
             </widget>
            </item>
            <item row="1" column="3">
-            <widget class="QLabel" name="lblAntennaHeight"><property name="text"><string>Ant.H[m]</string></property></widget>
+            <widget class="QLabel" name="lblInstrumentSN"><property name="text"><string>S/N:</string></property></widget>
            </item>
            <item row="1" column="4">
-            <widget class="QDoubleSpinBox" name="spinAntennaHeight">
-             <property name="decimals"><number>3</number></property>
-             <property name="minimum"><double>0.0</double></property>
-             <property name="maximum"><double>10.0</double></property>
-             <property name="singleStep"><double>0.001</double></property>
+            <widget class="QLineEdit" name="txtInstrumentSN">
+             <property name="placeholderText"><string>Seriennr.</string></property>
+             <property name="maximumWidth"><number>100</number></property>
             </widget>
            </item>
            <item row="2" column="0" colspan="3">
@@ -484,6 +482,63 @@
           <layout class="QVBoxLayout" name="pointMeasLayout">
            <property name="spacing"><number>4</number></property>
            <item>
+            <layout class="QHBoxLayout" name="punktNrRow">
+             <item>
+              <widget class="QLabel" name="lblPunktNummer"><property name="text"><string>Punktnr.:</string></property></widget>
+             </item>
+             <item>
+              <widget class="QLineEdit" name="txtPunktNummer">
+               <property name="placeholderText"><string>z.B. A.1</string></property>
+               <property name="maximumWidth"><number>120</number></property>
+               <property name="maxLength"><number>50</number></property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="punktNrSpacer">
+               <property name="orientation"><enum>Qt::Horizontal</enum></property>
+               <property name="sizeHint" stdset="0">
+                <size><width>40</width><height>20</height></size>
+               </property>
+              </spacer>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="kommentarRow">
+             <item>
+              <widget class="QLabel" name="lblKommentar"><property name="text"><string>Kommentar:</string></property></widget>
+             </item>
+             <item>
+              <widget class="QLineEdit" name="txtKommentar">
+               <property name="placeholderText"><string>optional</string></property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="instHRow">
+             <item>
+              <widget class="QLabel" name="lblInstH"><property name="text"><string>Inst.H[m]:</string></property></widget>
+             </item>
+             <item>
+              <widget class="QDoubleSpinBox" name="spinInstH">
+               <property name="decimals"><number>3</number></property>
+               <property name="minimum"><double>0.0</double></property>
+               <property name="maximum"><double>10.0</double></property>
+               <property name="singleStep"><double>0.001</double></property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="instHSpacer">
+               <property name="orientation"><enum>Qt::Horizontal</enum></property>
+               <property name="sizeHint" stdset="0">
+                <size><width>40</width><height>20</height></size>
+               </property>
+              </spacer>
+             </item>
+            </layout>
+           </item>
+           <item>
             <layout class="QHBoxLayout" name="avgRow">
              <item>
               <widget class="QCheckBox" name="cbAveraging">
@@ -513,6 +568,12 @@
            </item>
            <item>
             <layout class="QHBoxLayout" name="pointBtnRow">
+             <item>
+              <widget class="QCheckBox" name="cbAutoSave">
+               <property name="text"><string>Auto speichern</string></property>
+               <property name="checked"><bool>true</bool></property>
+              </widget>
+             </item>
              <item>
               <widget class="QPushButton" name="btnMeasurePoint">
                <property name="text"><string>Punkt messen</string></property>
@@ -738,6 +799,12 @@
             </layout>
            </item>
           </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="btnNewRecording">
+          <property name="text"><string>Neue Aufzeichnung starten</string></property>
+          <property name="toolTip"><string>Aktuelle Aufzeichnung beenden und neue Aufzeichnungsdateien starten</string></property>
          </widget>
         </item>
         <item>
